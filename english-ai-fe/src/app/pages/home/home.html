@@ -1,0 +1,114 @@
+<!-- Hero Section -->
+<section class="relative overflow-hidden">
+  <!-- Background decoration -->
+  <div class="absolute inset-0 -z-10">
+    <div class="absolute top-20 left-10 w-72 h-72 bg-green-100 rounded-full blur-3xl opacity-50"></div>
+    <div class="absolute bottom-20 right-10 w-96 h-96 bg-green-50 rounded-full blur-3xl opacity-60"></div>
+  </div>
+
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-24">
+    <div class="text-center max-w-4xl mx-auto">
+      <!-- Floating language pills -->
+      <div class="relative mb-8">
+        <span class="absolute -top-4 left-[10%] bg-white shadow-md text-sm px-3 py-1.5 rounded-full animate-float hidden lg:block">🇺🇸 English</span>
+        <span class="absolute -top-2 right-[12%] bg-white shadow-md text-sm px-3 py-1.5 rounded-full animate-float-delayed hidden lg:block">🇪🇸 Spanish</span>
+        <span class="absolute top-16 left-[5%] bg-white shadow-md text-sm px-3 py-1.5 rounded-full animate-float-slow hidden lg:block">🇫🇷 French</span>
+        <span class="absolute top-20 right-[7%] bg-white shadow-md text-sm px-3 py-1.5 rounded-full animate-float hidden lg:block">🇯🇵 Japanese</span>
+        <span class="absolute top-40 left-[8%] bg-white shadow-md text-sm px-3 py-1.5 rounded-full animate-float-delayed hidden lg:block">🇮🇳 Hindi</span>
+        <span class="absolute top-36 right-[10%] bg-white shadow-md text-sm px-3 py-1.5 rounded-full animate-float-slow hidden lg:block">🇸🇦 Arabic</span>
+      </div>
+
+      <h1 class="text-5xl sm:text-6xl lg:text-7xl font-extrabold text-gray-900 leading-tight tracking-tight">
+        Learn Any Language<br>
+        with <span class="gradient-text">AI</span>
+      </h1>
+      <p class="mt-6 text-lg sm:text-xl text-gray-500 max-w-2xl mx-auto leading-relaxed">
+        Master any language naturally through AI-powered conversations, personalized lessons, and interactive practice.
+      </p>
+      <div class="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
+        <a routerLink="/chat" class="w-full sm:w-auto bg-green-500 hover:bg-green-600 text-white px-8 py-3.5 rounded-full font-medium text-base transition-all shadow-lg shadow-green-500/25 hover:shadow-xl hover:shadow-green-500/30 hover:-translate-y-0.5">
+          Start Learning Free
+        </a>
+        <a routerLink="/learn" class="w-full sm:w-auto border border-gray-200 hover:border-green-500 text-gray-700 hover:text-green-500 px-8 py-3.5 rounded-full font-medium text-base transition-all">
+          Explore Courses
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Stats Row -->
+<section class="border-y border-gray-100 bg-white">
+  <div class="max-w-5xl mx-auto px-4 py-12">
+    <div class="grid grid-cols-3 gap-8 text-center">
+      <div>
+        <p class="text-3xl sm:text-4xl font-bold text-gray-900">50+</p>
+        <p class="text-sm text-gray-500 mt-1">Languages</p>
+      </div>
+      <div>
+        <p class="text-3xl sm:text-4xl font-bold text-gray-900">1M+</p>
+        <p class="text-sm text-gray-500 mt-1">Learners</p>
+      </div>
+      <div>
+        <p class="text-3xl sm:text-4xl font-bold text-gray-900">4.9</p>
+        <p class="text-sm text-gray-500 mt-1">Rating</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Features Grid -->
+<section class="py-20 bg-white">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="text-center mb-14">
+      <h2 class="text-3xl sm:text-4xl font-bold text-gray-900">Everything you need to <span class="gradient-text">learn faster</span></h2>
+      <p class="mt-4 text-gray-500 max-w-xl mx-auto">Powered by advanced AI to give you a personalized, immersive learning experience.</p>
+    </div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+      @for (feature of features; track feature.title) {
+        <div class="group bg-gray-50 hover:bg-white rounded-2xl p-8 transition-all hover:shadow-xl hover:shadow-gray-100 border border-transparent hover:border-gray-100">
+          <span class="text-4xl block mb-4">{{ feature.icon }}</span>
+          <h3 class="text-lg font-semibold text-gray-900 mb-2">{{ feature.title }}</h3>
+          <p class="text-sm text-gray-500 leading-relaxed">{{ feature.description }}</p>
+        </div>
+      }
+    </div>
+  </div>
+</section>
+
+<!-- Language Cards -->
+<section class="py-20 bg-gray-50">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="text-center mb-10">
+      <h2 class="text-3xl sm:text-4xl font-bold text-gray-900">Popular Languages</h2>
+      <p class="mt-4 text-gray-500">Choose from 50+ languages and start your journey today.</p>
+    </div>
+    <div class="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-hide">
+      @for (lang of languages; track lang.name) {
+        <div class="flex-shrink-0 snap-start bg-white rounded-2xl p-6 w-44 text-center border border-gray-100 hover:border-green-200 hover:shadow-lg transition-all cursor-pointer group">
+          <span class="text-4xl block mb-3">{{ lang.flag }}</span>
+          <h4 class="font-semibold text-gray-900 text-sm">{{ lang.name }}</h4>
+          <p class="text-xs text-gray-400 mt-1">{{ lang.learners }} learners</p>
+        </div>
+      }
+    </div>
+  </div>
+</section>
+
+<!-- CTA Banner -->
+<section class="py-20">
+  <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="bg-green-500 rounded-3xl px-8 sm:px-16 py-14 text-center relative overflow-hidden">
+      <div class="absolute inset-0 bg-gradient-to-br from-green-400 to-green-600"></div>
+      <div class="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2"></div>
+      <div class="absolute bottom-0 left-0 w-48 h-48 bg-white/10 rounded-full translate-y-1/2 -translate-x-1/2"></div>
+      <div class="relative z-10">
+        <h2 class="text-3xl sm:text-4xl font-bold text-white mb-4">Start Learning Today</h2>
+        <p class="text-green-100 text-lg mb-8 max-w-lg mx-auto">Free forever. No credit card required. Join 1M+ learners worldwide.</p>
+        <a routerLink="/chat" class="inline-block bg-white text-green-600 px-8 py-3.5 rounded-full font-semibold text-base hover:shadow-xl transition-all hover:-translate-y-0.5">
+          Get Started for Free
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
