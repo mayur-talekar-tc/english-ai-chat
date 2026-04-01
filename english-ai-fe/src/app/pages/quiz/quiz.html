@@ -3,7 +3,7 @@
 
     @if (!quizComplete()) {
       <!-- Header -->
-      <div class="flex items-center justify-between mb-8">
+      <div class="flex items-center justify-between mb-6">
         <div>
           <h1 class="text-2xl font-bold text-gray-900">English Quiz</h1>
           <p class="text-sm text-gray-500 mt-1">Test your knowledge</p>
@@ -14,6 +14,25 @@
           </svg>
           <span class="text-sm font-semibold text-gray-900">{{ score() }}/{{ questions.length }}</span>
         </div>
+      </div>
+
+      <!-- Category Tabs -->
+      <div class="flex gap-2 mb-8">
+        <button (click)="onCategoryChange('grammar')"
+          class="px-4 py-2 rounded-full text-sm font-medium transition-all"
+          [class]="selectedCategory() === 'grammar' ? 'bg-green-500 text-white shadow-sm' : 'bg-white text-gray-600 border border-gray-200 hover:border-green-300'">
+          Grammar
+        </button>
+        <button (click)="onCategoryChange('vocabulary')"
+          class="px-4 py-2 rounded-full text-sm font-medium transition-all"
+          [class]="selectedCategory() === 'vocabulary' ? 'bg-green-500 text-white shadow-sm' : 'bg-white text-gray-600 border border-gray-200 hover:border-green-300'">
+          Vocabulary
+        </button>
+        <button (click)="onCategoryChange('phrases')"
+          class="px-4 py-2 rounded-full text-sm font-medium transition-all"
+          [class]="selectedCategory() === 'phrases' ? 'bg-green-500 text-white shadow-sm' : 'bg-white text-gray-600 border border-gray-200 hover:border-green-300'">
+          Phrases
+        </button>
       </div>
 
       <!-- Progress -->
@@ -28,48 +47,63 @@
       </div>
 
       <!-- Question Card -->
-      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 mb-6">
-        <h2 class="text-lg font-semibold text-gray-900 mb-6 leading-relaxed">{{ currentQuestion.question }}</h2>
-        <div class="space-y-3">
-          @for (option of currentQuestion.options; track option; let i = $index) {
-            <button
-              (click)="selectOption(i)"
-              class="w-full text-left px-5 py-4 rounded-xl border-2 text-sm font-medium transition-all flex items-center gap-3"
-              [class]="getOptionClass(i)"
-              [disabled]="answered()"
-            >
-              <span class="w-7 h-7 rounded-full border-2 flex items-center justify-center text-xs flex-shrink-0"
-                [class]="answered() && i === currentQuestion.correctIndex ? 'border-green-500 bg-green-500 text-white' : answered() && i === selectedOption() && i !== currentQuestion.correctIndex ? 'border-red-400 bg-red-400 text-white' : 'border-current'"
+      @if (currentQuestion) {
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 mb-6">
+          <h2 class="text-lg font-semibold text-gray-900 mb-6 leading-relaxed">{{ currentQuestion.question }}</h2>
+          <div class="space-y-3">
+            @for (option of currentQuestion.options; track option; let i = $index) {
+              <button
+                (click)="selectOption(i)"
+                class="w-full text-left px-5 py-4 rounded-xl border-2 text-sm font-medium transition-all flex items-center gap-3"
+                [class]="getOptionClass(i)"
+                [disabled]="answered()"
               >
-                @if (answered() && i === currentQuestion.correctIndex) {
-                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
-                } @else if (answered() && i === selectedOption() && i !== currentQuestion.correctIndex) {
-                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"/></svg>
-                } @else {
-                  {{ ['A', 'B', 'C', 'D'][i] }}
-                }
-              </span>
-              {{ option }}
-            </button>
-          }
-        </div>
-      </div>
-
-      <!-- Next Button -->
-      @if (answered()) {
-        <div class="flex justify-end">
-          <button
-            (click)="nextQuestion()"
-            class="bg-green-500 hover:bg-green-600 text-white px-8 py-3 rounded-xl font-medium text-sm transition-all shadow-sm hover:shadow-md flex items-center gap-2"
-          >
-            @if (currentIndex() < questions.length - 1) {
-              Next Question
-            } @else {
-              See Results
+                <span class="w-7 h-7 rounded-full border-2 flex items-center justify-center text-xs flex-shrink-0"
+                  [class]="answered() && i === currentQuestion.correctIndex ? 'border-green-500 bg-green-500 text-white' : answered() && i === selectedOption() && i !== currentQuestion.correctIndex ? 'border-red-400 bg-red-400 text-white' : 'border-current'"
+                >
+                  @if (answered() && i === currentQuestion.correctIndex) {
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+                  } @else if (answered() && i === selectedOption() && i !== currentQuestion.correctIndex) {
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"/></svg>
+                  } @else {
+                    {{ ['A', 'B', 'C', 'D'][i] }}
+                  }
+                </span>
+                {{ option }}
+              </button>
             }
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-          </button>
+          </div>
         </div>
+
+        <!-- Feedback & Next Button -->
+        @if (answered()) {
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              @if (selectedOption() === currentQuestion.correctIndex) {
+                <span class="text-green-500 text-sm font-medium flex items-center gap-1">
+                  <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+                  Correct!
+                </span>
+              } @else {
+                <span class="text-red-500 text-sm font-medium flex items-center gap-1">
+                  <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/></svg>
+                  Wrong!
+                </span>
+              }
+            </div>
+            <button
+              (click)="nextQuestion()"
+              class="bg-green-500 hover:bg-green-600 text-white px-8 py-3 rounded-xl font-medium text-sm transition-all shadow-sm hover:shadow-md flex items-center gap-2"
+            >
+              @if (currentIndex() < questions.length - 1) {
+                Next Question
+              } @else {
+                See Results
+              }
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+            </button>
+          </div>
+        }
       }
 
     } @else {
@@ -78,12 +112,14 @@
         <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-10 max-w-md mx-auto">
           @if (scorePercentage >= 80) {
             <span class="text-6xl block mb-4">🎉</span>
+            <h2 class="text-2xl font-bold text-gray-900 mb-2">Excellent!</h2>
           } @else if (scorePercentage >= 50) {
             <span class="text-6xl block mb-4">👍</span>
+            <h2 class="text-2xl font-bold text-gray-900 mb-2">Good Job!</h2>
           } @else {
             <span class="text-6xl block mb-4">💪</span>
+            <h2 class="text-2xl font-bold text-gray-900 mb-2">Keep Practicing!</h2>
           }
-          <h2 class="text-2xl font-bold text-gray-900 mb-2">Quiz Complete!</h2>
           <p class="text-gray-500 mb-6">You scored</p>
           <div class="mb-8">
             <span class="text-5xl font-bold text-green-500">{{ score() }}</span>
@@ -92,12 +128,14 @@
           <div class="w-full bg-gray-200 rounded-full h-3 mb-8">
             <div class="bg-green-500 h-3 rounded-full transition-all duration-1000" [style.width.%]="scorePercentage"></div>
           </div>
-          <button
-            (click)="restartQuiz()"
-            class="bg-green-500 hover:bg-green-600 text-white px-8 py-3 rounded-full font-medium text-sm transition-all shadow-lg shadow-green-500/25"
-          >
-            Try Again
-          </button>
+          <div class="flex gap-3 justify-center">
+            <button
+              (click)="restartQuiz()"
+              class="bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-full font-medium text-sm transition-all shadow-lg shadow-green-500/25"
+            >
+              Try Again
+            </button>
+          </div>
         </div>
       </div>
     }

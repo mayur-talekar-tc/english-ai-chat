@@ -9,31 +9,43 @@
         <div>
           <h2 class="text-sm font-semibold text-gray-900">BhashaAI Tutor</h2>
           <div class="flex items-center gap-1.5">
-            <span class="w-2 h-2 bg-green-400 rounded-full"></span>
-            <span class="text-xs text-gray-400">Online</span>
+            @if (isLoading()) {
+              <span class="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></span>
+              <span class="text-xs text-yellow-500">Typing...</span>
+            } @else {
+              <span class="w-2 h-2 bg-green-400 rounded-full"></span>
+              <span class="text-xs text-gray-400">Online</span>
+            }
           </div>
         </div>
       </div>
-      <select
-        [value]="selectedLanguage()"
-        (change)="onLanguageChange($event)"
-        class="bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 text-xs font-medium text-gray-600 focus:outline-none focus:ring-2 focus:ring-green-500"
-      >
-        <option value="english">🇺🇸 English</option>
-        <option value="spanish">🇪🇸 Spanish</option>
-        <option value="french">🇫🇷 French</option>
-        <option value="japanese">🇯🇵 Japanese</option>
-        <option value="hindi">🇮🇳 Hindi</option>
-      </select>
+      <div class="flex items-center gap-2">
+        <select
+          [value]="selectedLanguage()"
+          (change)="onLanguageChange($event)"
+          class="bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 text-xs font-medium text-gray-600 focus:outline-none focus:ring-2 focus:ring-green-500"
+        >
+          <option value="english">🇺🇸 English</option>
+          <option value="spanish">🇪🇸 Spanish</option>
+          <option value="french">🇫🇷 French</option>
+          <option value="japanese">🇯🇵 Japanese</option>
+          <option value="hindi">🇮🇳 Hindi</option>
+          <option value="german">🇩🇪 German</option>
+        </select>
+        <button (click)="clearHistory()" class="p-1.5 rounded-lg hover:bg-gray-100 transition-colors" title="Clear chat">
+          <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+          </svg>
+        </button>
+      </div>
     </div>
   </div>
 
   <!-- Messages -->
   <div #chatContainer class="flex-1 overflow-y-auto px-4 sm:px-6 py-6">
     <div class="max-w-3xl mx-auto space-y-6">
-      @for (message of messages(); track message.timestamp) {
+      @for (message of messages(); track $index) {
         @if (message.role === 'ai') {
-          <!-- AI Message -->
           <div class="flex items-start gap-3">
             <div class="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
               <span class="text-white text-[10px] font-bold">AI</span>
@@ -43,7 +55,6 @@
             </div>
           </div>
         } @else {
-          <!-- User Message -->
           <div class="flex items-start gap-3 justify-end">
             <div class="bg-green-500 rounded-2xl rounded-tr-md px-4 py-3 max-w-[80%]">
               <p class="text-sm text-white leading-relaxed whitespace-pre-wrap">{{ message.content }}</p>
@@ -81,6 +92,7 @@
           (keydown)="onKeyDown($event)"
           placeholder="Type your message..."
           class="flex-1 bg-transparent text-sm text-gray-700 placeholder-gray-400 focus:outline-none"
+          [disabled]="isLoading()"
         />
         <button
           (click)="sendMessage()"
@@ -89,7 +101,7 @@
           [class]="userMessage().trim() && !isLoading() ? 'bg-green-500 text-white hover:bg-green-600 shadow-sm' : 'bg-gray-200 text-gray-400 cursor-not-allowed'"
         >
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19V5m0 0l-7 7m7-7l7 7" transform="rotate(45 12 12)"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14m-7-7l7 7-7 7"/>
           </svg>
         </button>
       </div>

@@ -9,7 +9,7 @@
       <select
         [value]="selectedLanguage()"
         (change)="onLanguageChange($event)"
-        class="bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent appearance-none cursor-pointer"
+        class="bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent cursor-pointer"
       >
         <option value="spanish">🇪🇸 Spanish</option>
         <option value="french">🇫🇷 French</option>
@@ -17,6 +17,22 @@
         <option value="hindi">🇮🇳 Hindi</option>
         <option value="german">🇩🇪 German</option>
       </select>
+    </div>
+
+    <!-- Stats -->
+    <div class="flex items-center gap-4 mb-6">
+      <div class="flex-1 bg-white rounded-xl border border-gray-100 px-4 py-3 text-center">
+        <p class="text-lg font-bold text-gray-900">{{ currentIndex() + 1 }}/{{ flashcards.length }}</p>
+        <p class="text-[11px] text-gray-400">Current</p>
+      </div>
+      <div class="flex-1 bg-white rounded-xl border border-gray-100 px-4 py-3 text-center">
+        <p class="text-lg font-bold text-green-500">{{ masteredCount() }}</p>
+        <p class="text-[11px] text-gray-400">Mastered</p>
+      </div>
+      <div class="flex-1 bg-white rounded-xl border border-gray-100 px-4 py-3 text-center">
+        <p class="text-lg font-bold text-gray-900">{{ flashcards.length - masteredCount() }}</p>
+        <p class="text-[11px] text-gray-400">Remaining</p>
+      </div>
     </div>
 
     <!-- Progress -->
@@ -31,47 +47,59 @@
     </div>
 
     <!-- Flashcard -->
-    <div
-      class="cursor-pointer mb-8" style="perspective: 1000px"
-      (click)="flipCard()"
-      [class.flashcard-flipped]="isFlipped()"
-    >
-      <div class="flashcard-inner relative w-full h-72 sm:h-80">
-        <!-- Front -->
-        <div class="flashcard-front absolute inset-0 bg-white rounded-3xl shadow-lg border border-gray-100 flex flex-col items-center justify-center p-8">
-          <span class="text-xs font-medium text-green-500 bg-green-50 px-3 py-1 rounded-full mb-6">TAP TO FLIP</span>
-          <h2 class="text-4xl sm:text-5xl font-bold text-gray-900">{{ currentCard.word }}</h2>
-          <p class="text-sm text-gray-400 mt-4 italic">"{{ currentCard.example }}"</p>
-        </div>
-        <!-- Back -->
-        <div class="flashcard-back absolute inset-0 bg-green-500 rounded-3xl shadow-lg flex flex-col items-center justify-center p-8">
-          <span class="text-xs font-medium text-green-100 bg-green-600 px-3 py-1 rounded-full mb-6">TRANSLATION</span>
-          <h2 class="text-4xl sm:text-5xl font-bold text-white">{{ currentCard.translation }}</h2>
-          <p class="text-sm text-green-100 mt-4">{{ currentCard.word }} = {{ currentCard.translation }}</p>
+    @if (currentCard) {
+      <div
+        class="cursor-pointer mb-8" style="perspective: 1000px"
+        (click)="flipCard()"
+        [class.flashcard-flipped]="isFlipped()"
+      >
+        <div class="flashcard-inner relative w-full h-72 sm:h-80">
+          <!-- Front -->
+          <div class="flashcard-front absolute inset-0 bg-white rounded-3xl shadow-lg border border-gray-100 flex flex-col items-center justify-center p-8">
+            <span class="text-xs font-medium text-green-500 bg-green-50 px-3 py-1 rounded-full mb-6">TAP TO FLIP</span>
+            <h2 class="text-4xl sm:text-5xl font-bold text-gray-900">{{ currentCard.word }}</h2>
+            <p class="text-sm text-gray-400 mt-4 italic">"{{ currentCard.example }}"</p>
+          </div>
+          <!-- Back -->
+          <div class="flashcard-back absolute inset-0 bg-green-500 rounded-3xl shadow-lg flex flex-col items-center justify-center p-8">
+            <span class="text-xs font-medium text-green-100 bg-green-600 px-3 py-1 rounded-full mb-6">TRANSLATION</span>
+            <h2 class="text-4xl sm:text-5xl font-bold text-white">{{ currentCard.translation }}</h2>
+            <p class="text-sm text-green-100 mt-4">{{ currentCard.word }} = {{ currentCard.translation }}</p>
+          </div>
         </div>
       </div>
-    </div>
 
-    <!-- Navigation -->
-    <div class="flex items-center justify-between">
-      <button
-        (click)="prevCard()"
-        [disabled]="currentIndex() === 0"
-        class="flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-medium transition-all"
-        [class]="currentIndex() === 0 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white text-gray-700 border border-gray-200 hover:border-green-500 hover:text-green-500 shadow-sm'"
-      >
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
-        Previous
-      </button>
-      <button
-        (click)="nextCard()"
-        [disabled]="currentIndex() === flashcards.length - 1"
-        class="flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-medium transition-all"
-        [class]="currentIndex() === flashcards.length - 1 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-green-500 text-white hover:bg-green-600 shadow-sm'"
-      >
-        Next
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-      </button>
-    </div>
+      <!-- Navigation -->
+      <div class="flex items-center justify-between gap-3">
+        <button
+          (click)="prevCard()"
+          [disabled]="currentIndex() === 0"
+          class="flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-medium transition-all"
+          [class]="currentIndex() === 0 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white text-gray-700 border border-gray-200 hover:border-green-500 hover:text-green-500 shadow-sm'"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+          Previous
+        </button>
+
+        <button
+          (click)="markMastered()"
+          [disabled]="currentIndex() === flashcards.length - 1 && masteredCount() >= flashcards.length - 1"
+          class="flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-medium bg-white text-green-600 border border-green-200 hover:bg-green-50 shadow-sm transition-all"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+          Got it!
+        </button>
+
+        <button
+          (click)="nextCard()"
+          [disabled]="currentIndex() === flashcards.length - 1"
+          class="flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-medium transition-all"
+          [class]="currentIndex() === flashcards.length - 1 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-green-500 text-white hover:bg-green-600 shadow-sm'"
+        >
+          Next
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+        </button>
+      </div>
+    }
   </div>
 </section>
