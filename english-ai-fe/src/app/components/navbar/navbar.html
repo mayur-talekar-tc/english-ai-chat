@@ -17,12 +17,19 @@
            class="text-sm font-medium text-gray-600 hover:text-green-500 transition-colors">AI Chat</a>
         <a routerLink="/quiz" routerLinkActive="text-green-500"
            class="text-sm font-medium text-gray-600 hover:text-green-500 transition-colors">Quiz</a>
+        <a routerLink="/voice" routerLinkActive="text-green-500"
+           class="text-sm font-medium text-gray-600 hover:text-green-500 transition-colors">Voice</a>
       </div>
 
-      <!-- Desktop Buttons -->
+      <!-- Desktop Auth -->
       <div class="hidden md:flex items-center gap-3">
-        <button class="text-sm font-medium text-gray-700 hover:text-green-500 px-4 py-2 transition-colors">Login</button>
-        <button class="text-sm font-medium text-white bg-green-500 hover:bg-green-600 px-5 py-2 rounded-full transition-all shadow-sm hover:shadow-md">Get Started</button>
+        @if (auth.isLoggedIn()) {
+          <span class="text-sm font-medium text-gray-700">{{ auth.currentUser()?.name }}</span>
+          <button (click)="auth.logout()" class="text-sm font-medium text-gray-500 hover:text-red-500 px-4 py-2 transition-colors">Logout</button>
+        } @else {
+          <a routerLink="/login" class="text-sm font-medium text-gray-700 hover:text-green-500 px-4 py-2 transition-colors">Login</a>
+          <a routerLink="/register" class="text-sm font-medium text-white bg-green-500 hover:bg-green-600 px-5 py-2 rounded-full transition-all shadow-sm hover:shadow-md">Get Started</a>
+        }
       </div>
 
       <!-- Mobile Hamburger -->
@@ -48,9 +55,15 @@
         <a routerLink="/learn" (click)="toggleMenu()" class="block text-sm font-medium text-gray-700 hover:text-green-500 py-2 transition-colors">Learn</a>
         <a routerLink="/chat" (click)="toggleMenu()" class="block text-sm font-medium text-gray-700 hover:text-green-500 py-2 transition-colors">AI Chat</a>
         <a routerLink="/quiz" (click)="toggleMenu()" class="block text-sm font-medium text-gray-700 hover:text-green-500 py-2 transition-colors">Quiz</a>
+        <a routerLink="/voice" (click)="toggleMenu()" class="block text-sm font-medium text-gray-700 hover:text-green-500 py-2 transition-colors">Voice</a>
         <hr class="border-gray-100">
-        <button class="block w-full text-left text-sm font-medium text-gray-700 py-2">Login</button>
-        <button class="block w-full text-sm font-medium text-white bg-green-500 hover:bg-green-600 px-5 py-2.5 rounded-full transition-all text-center">Get Started</button>
+        @if (auth.isLoggedIn()) {
+          <span class="block text-sm font-medium text-gray-700 py-2">{{ auth.currentUser()?.name }}</span>
+          <button (click)="auth.logout(); toggleMenu()" class="block w-full text-left text-sm font-medium text-red-500 py-2">Logout</button>
+        } @else {
+          <a routerLink="/login" (click)="toggleMenu()" class="block text-sm font-medium text-gray-700 py-2">Login</a>
+          <a routerLink="/register" (click)="toggleMenu()" class="block w-full text-sm font-medium text-white bg-green-500 hover:bg-green-600 px-5 py-2.5 rounded-full transition-all text-center">Get Started</a>
+        }
       </div>
     </div>
   }
