@@ -285,9 +285,9 @@ function normalizeVocabularyWords(payload, language) {
       };
     })
     .filter(Boolean)
-    .slice(0, 10);
+    .slice(0, 30);
 
-  if (words.length === 10) {
+  if (words.length >= 1) {
     return words;
   }
 
@@ -393,8 +393,13 @@ Rules:
 };
 
 exports.vocabulary = async (req, res) => {
-  const { language = 'Hindi', count = 10 } = req.body || {};
+  const { language = 'Hindi', count = 10, category = '', exclude = [] } = req.body || {};
   const wordCount = Math.min(Math.max(parseInt(count) || 10, 1), 30);
+
+  const categoryLine = category ? `- All words must belong to the category: "${category}".` : '- Use a mix of everyday categories.';
+  const excludeLine = Array.isArray(exclude) && exclude.length > 0
+    ? `- Do NOT include any of these words (already learned): ${exclude.join(', ')}.`
+    : '';
 
   try {
     const prompt = `You are creating vocabulary flashcards for ${language}.
@@ -411,13 +416,15 @@ Return only valid JSON with this exact shape:
 }
 
 Rules:
-- Generate exactly ${wordCount} everyday vocabulary words.
+- Generate exactly ${wordCount} vocabulary words.
+${categoryLine}
+${excludeLine}
 - If the language uses a non-Latin script, "word" must use the native script and "transliteration" must be Romanized.
 - "meaning" must be the English meaning.
 - "example" should be a short natural example in the target language, optionally followed by a short English gloss only if needed.
 - Prefer beginner-friendly, practical vocabulary.`;
 
-    console.log('[AI Vocabulary] Request:', { language });
+    console.log('[AI Vocabulary] Request:', { language, count: wordCount, category });
 
     const text = await generateModelText(prompt);
     const parsed = parseJsonResponse(text);
@@ -428,6 +435,62 @@ Rules:
   } catch (error) {
     console.error('[AI Vocabulary] Error:', error.message);
     res.json({ words: normalizeVocabularyWords(null, language) });
+  }
+};
+
+exports.wordDetails = async (req, res) => {
+  const { word = '', language = 'Hindi' } = req.body || {};
+
+  if (!word.trim()) {
+    return res.json({ success: false, error: 'Word is required' });
+  }
+
+  try {
+    const prompt = `You are a ${language} language expert. Provide detailed information about the word "${word}" in ${language}.
+Return only valid JSON with this exact shape:
+{
+  "word": "${word}",
+  "transliteration": "string",
+  "meaning": "string",
+  "examples": ["sentence 1", "sentence 2", "sentence 3"],
+  "synonyms": ["synonym1", "synonym2", "synonym3"],
+  "antonyms": ["antonym1", "antonym2"],
+  "usageTips": "string with practical usage advice",
+  "difficulty": "beginner|intermediate|advanced"
+}
+
+Rules:
+- "examples" must have exactly 3 natural example sentences in ${language} with English translation in parentheses.
+- "synonyms" should be 2-3 words in ${language} with transliteration.
+- "antonyms" should be 1-2 words in ${language} with transliteration (empty array if not applicable).
+- "usageTips" should be 1-2 sentences about when/how to use the word naturally.
+- "difficulty" should be one of: beginner, intermediate, advanced.`;
+
+    console.log('[AI WordDetails] Request:', { word, language });
+
+    const text = await generateModelText(prompt);
+    const parsed = parseJsonResponse(text);
+
+    if (parsed) {
+      res.json({
+        success: true,
+        details: {
+          word: parsed.word || word,
+          transliteration: parsed.transliteration || '',
+          meaning: parsed.meaning || '',
+          examples: Array.isArray(parsed.examples) ? parsed.examples.slice(0, 3) : [],
+          synonyms: Array.isArray(parsed.synonyms) ? parsed.synonyms.slice(0, 3) : [],
+          antonyms: Array.isArray(parsed.antonyms) ? parsed.antonyms.slice(0, 3) : [],
+          usageTips: typeof parsed.usageTips === 'string' ? parsed.usageTips : '',
+          difficulty: ['beginner', 'intermediate', 'advanced'].includes(parsed.difficulty) ? parsed.difficulty : 'beginner',
+        },
+      });
+    } else {
+      res.json({ success: false, error: 'Could not parse word details' });
+    }
+  } catch (error) {
+    console.error('[AI WordDetails] Error:', error.message);
+    res.json({ success: false, error: 'Word details service unavailable' });
   }
 };
 
