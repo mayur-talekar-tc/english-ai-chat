@@ -1,17 +1,19 @@
-import { Component, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { HttpClient } from '@angular/common/http';
+import { AI_API_URL } from '../../shared/api';
+import { SUPPORTED_LANGUAGE_OPTIONS, getLanguageOption, isIndianLanguage } from '../../shared/languages';
 
-interface Flashcard {
+interface VocabularyWord {
   word: string;
-  translation: string;
+  transliteration: string;
+  meaning: string;
   example: string;
 }
 
-interface LanguageData {
-  label: string;
-  flag: string;
-  cards: Flashcard[];
+interface VocabularyResponse {
+  words?: VocabularyWord[];
 }
 
 @Component({
@@ -21,90 +23,30 @@ interface LanguageData {
   styleUrl: './learn.css',
 })
 export class Learn {
-  selectedLanguage = signal('spanish');
+  private http = inject(HttpClient);
+
+  readonly languages = SUPPORTED_LANGUAGE_OPTIONS;
+
+  selectedLanguage = signal('hindi');
   currentIndex = signal(0);
   isFlipped = signal(false);
-  masteredCount = signal(0);
+  masteredIndices = signal<number[]>([]);
+  words = signal<VocabularyWord[]>([]);
+  isLoading = signal(false);
+  error = signal('');
 
-  languageData: Record<string, LanguageData> = {
-    spanish: {
-      label: 'Spanish', flag: '🇪🇸',
-      cards: [
-        { word: 'Hola', translation: 'Hello', example: '¡Hola! ¿Cómo estás?' },
-        { word: 'Gracias', translation: 'Thank you', example: 'Muchas gracias por tu ayuda.' },
-        { word: 'Buenos días', translation: 'Good morning', example: 'Buenos días, señora.' },
-        { word: 'Por favor', translation: 'Please', example: '¿Puedes ayudarme, por favor?' },
-        { word: 'Adiós', translation: 'Goodbye', example: '¡Adiós! Nos vemos mañana.' },
-        { word: 'Agua', translation: 'Water', example: 'Necesito un vaso de agua.' },
-        { word: 'Amigo', translation: 'Friend', example: 'Él es mi mejor amigo.' },
-        { word: 'Casa', translation: 'House', example: 'Mi casa es tu casa.' },
-      ],
-    },
-    french: {
-      label: 'French', flag: '🇫🇷',
-      cards: [
-        { word: 'Bonjour', translation: 'Hello', example: 'Bonjour, comment allez-vous?' },
-        { word: 'Merci', translation: 'Thank you', example: 'Merci beaucoup!' },
-        { word: 'S\'il vous plaît', translation: 'Please', example: 'Un café, s\'il vous plaît.' },
-        { word: 'Au revoir', translation: 'Goodbye', example: 'Au revoir, à demain!' },
-        { word: 'Oui', translation: 'Yes', example: 'Oui, je suis prêt.' },
-        { word: 'Maison', translation: 'House', example: 'C\'est une belle maison.' },
-        { word: 'Ami', translation: 'Friend', example: 'Il est mon ami.' },
-        { word: 'Eau', translation: 'Water', example: 'Je voudrais de l\'eau.' },
-      ],
-    },
-    japanese: {
-      label: 'Japanese', flag: '🇯🇵',
-      cards: [
-        { word: 'こんにちは', translation: 'Hello', example: 'こんにちは、お元気ですか？' },
-        { word: 'ありがとう', translation: 'Thank you', example: 'ありがとうございます。' },
-        { word: 'おはよう', translation: 'Good morning', example: 'おはようございます。' },
-        { word: 'さようなら', translation: 'Goodbye', example: 'さようなら、また明日。' },
-        { word: 'はい', translation: 'Yes', example: 'はい、わかりました。' },
-        { word: '水', translation: 'Water', example: '水をください。' },
-        { word: '友達', translation: 'Friend', example: '彼は私の友達です。' },
-        { word: '食べる', translation: 'To eat', example: '寿司を食べる。' },
-      ],
-    },
-    hindi: {
-      label: 'Hindi', flag: '🇮🇳',
-      cards: [
-        { word: 'नमस्ते', translation: 'Hello', example: 'नमस्ते, आप कैसे हैं?' },
-        { word: 'धन्यवाद', translation: 'Thank you', example: 'बहुत धन्यवाद।' },
-        { word: 'कृपया', translation: 'Please', example: 'कृपया मदद करें।' },
-        { word: 'अलविदा', translation: 'Goodbye', example: 'अलविदा, कल मिलते हैं।' },
-        { word: 'हाँ', translation: 'Yes', example: 'हाँ, मैं तैयार हूँ।' },
-        { word: 'पानी', translation: 'Water', example: 'मुझे पानी चाहिए।' },
-        { word: 'दोस्त', translation: 'Friend', example: 'वह मेरा अच्छा दोस्त है।' },
-        { word: 'खाना', translation: 'Food', example: 'खाना बहुत स्वादिष्ट है।' },
-      ],
-    },
-    german: {
-      label: 'German', flag: '🇩🇪',
-      cards: [
-        { word: 'Hallo', translation: 'Hello', example: 'Hallo, wie geht es Ihnen?' },
-        { word: 'Danke', translation: 'Thank you', example: 'Vielen Danke für Ihre Hilfe.' },
-        { word: 'Bitte', translation: 'Please', example: 'Können Sie mir helfen, bitte?' },
-        { word: 'Auf Wiedersehen', translation: 'Goodbye', example: 'Auf Wiedersehen, bis morgen!' },
-        { word: 'Ja', translation: 'Yes', example: 'Ja, ich bin bereit.' },
-        { word: 'Wasser', translation: 'Water', example: 'Ich möchte Wasser, bitte.' },
-        { word: 'Freund', translation: 'Friend', example: 'Er ist mein bester Freund.' },
-        { word: 'Haus', translation: 'House', example: 'Das ist ein schönes Haus.' },
-      ],
-    },
-  };
+  currentCard = computed(() => this.words()[this.currentIndex()] ?? null);
+  progress = computed(() => {
+    const total = this.words().length;
+    if (!total) return 0;
+    return ((this.currentIndex() + 1) / total) * 100;
+  });
+  masteredCount = computed(() => this.masteredIndices().length);
+  currentLanguage = computed(() => getLanguageOption(this.selectedLanguage()));
+  isIndianSelection = computed(() => isIndianLanguage(this.selectedLanguage()));
 
-  get flashcards(): Flashcard[] {
-    return this.languageData[this.selectedLanguage()]?.cards || [];
-  }
-
-  get currentCard(): Flashcard {
-    return this.flashcards[this.currentIndex()];
-  }
-
-  get progress(): number {
-    if (!this.flashcards.length) return 0;
-    return ((this.currentIndex() + 1) / this.flashcards.length) * 100;
+  constructor() {
+    this.loadVocabulary();
   }
 
   flipCard() {
@@ -112,7 +54,7 @@ export class Learn {
   }
 
   nextCard() {
-    if (this.currentIndex() < this.flashcards.length - 1) {
+    if (this.currentIndex() < this.words().length - 1) {
       this.isFlipped.set(false);
       setTimeout(() => this.currentIndex.update(i => i + 1), 150);
     }
@@ -126,15 +68,39 @@ export class Learn {
   }
 
   markMastered() {
-    this.masteredCount.update(c => c + 1);
+    const index = this.currentIndex();
+    this.masteredIndices.update((indices) => (indices.includes(index) ? indices : [...indices, index]));
     this.nextCard();
   }
 
   onLanguageChange(event: Event) {
     const select = event.target as HTMLSelectElement;
     this.selectedLanguage.set(select.value);
+    this.loadVocabulary();
+  }
+
+  loadVocabulary() {
     this.currentIndex.set(0);
     this.isFlipped.set(false);
-    this.masteredCount.set(0);
+    this.masteredIndices.set([]);
+    this.error.set('');
+    this.isLoading.set(true);
+
+    const languageName = this.currentLanguage()?.name ?? 'Hindi';
+
+    this.http.post<VocabularyResponse>(`${AI_API_URL}/vocabulary`, { language: languageName }).subscribe({
+      next: (response) => {
+        const words = Array.isArray(response.words) ? response.words : [];
+        this.words.set(words);
+        this.isLoading.set(false);
+        if (!words.length) {
+          this.error.set('No vocabulary cards were generated. Try again.');
+        }
+      },
+      error: () => {
+        this.isLoading.set(false);
+        this.error.set('Vocabulary service is unavailable right now. Try again shortly.');
+      },
+    });
   }
 }

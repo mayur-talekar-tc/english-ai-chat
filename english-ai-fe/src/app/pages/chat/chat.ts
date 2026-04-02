@@ -1,6 +1,8 @@
 import { Component, signal, inject, ElementRef, ViewChild, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
+import { AI_API_URL } from '../../shared/api';
+import { SUPPORTED_LANGUAGE_OPTIONS } from '../../shared/languages';
 
 interface ChatMessage {
   role: 'user' | 'ai';
@@ -21,6 +23,8 @@ export class Chat implements OnInit {
   private http = inject(HttpClient);
 
   @ViewChild('chatContainer') chatContainer!: ElementRef;
+
+  readonly languages = SUPPORTED_LANGUAGE_OPTIONS;
 
   selectedLanguage = signal('english');
   userMessage = signal('');
@@ -50,7 +54,7 @@ export class Chat implements OnInit {
     this.scrollToBottom();
 
     this.http
-      .post<{ success: boolean; reply: string; error?: string }>('http://127.0.0.1:3001/api/ai/chat', {
+      .post<{ success: boolean; reply: string; error?: string }>(`${AI_API_URL}/chat`, {
         message: msg,
         language: this.selectedLanguage(),
       })

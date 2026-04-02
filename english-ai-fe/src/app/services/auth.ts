@@ -2,6 +2,7 @@ import { Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { Router } from '@angular/router';
+import { AUTH_API_URL } from '../shared/api';
 
 export interface User {
   name: string;
@@ -9,8 +10,6 @@ export interface User {
 }
 
 const USER_KEY = 'bhashaai_user';
-const API = 'http://127.0.0.1:3001/api/auth';
-
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private http = inject(HttpClient);
@@ -26,7 +25,7 @@ export class AuthService {
 
   register(name: string, email: string, password: string) {
     this.error.set('');
-    this.http.post<{ success: boolean; user?: User; error?: string }>(`${API}/register`, { name, email, password })
+    this.http.post<{ success: boolean; user?: User; error?: string }>(`${AUTH_API_URL}/register`, { name, email, password })
       .subscribe({
         next: (res) => {
           if (res.success && res.user) {
@@ -42,7 +41,7 @@ export class AuthService {
 
   login(email: string, password: string) {
     this.error.set('');
-    this.http.post<{ success: boolean; user?: User; error?: string }>(`${API}/login`, { email, password })
+    this.http.post<{ success: boolean; user?: User; error?: string }>(`${AUTH_API_URL}/login`, { email, password })
       .subscribe({
         next: (res) => {
           if (res.success && res.user) {

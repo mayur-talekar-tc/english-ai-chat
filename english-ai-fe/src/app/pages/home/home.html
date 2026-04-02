@@ -10,12 +10,12 @@
     <div class="text-center max-w-4xl mx-auto">
       <!-- Floating language pills -->
       <div class="relative mb-8">
-        <span class="absolute -top-4 left-[10%] bg-white shadow-md text-sm px-3 py-1.5 rounded-full animate-float hidden lg:block">🇺🇸 English</span>
-        <span class="absolute -top-2 right-[12%] bg-white shadow-md text-sm px-3 py-1.5 rounded-full animate-float-delayed hidden lg:block">🇪🇸 Spanish</span>
-        <span class="absolute top-16 left-[5%] bg-white shadow-md text-sm px-3 py-1.5 rounded-full animate-float-slow hidden lg:block">🇫🇷 French</span>
-        <span class="absolute top-20 right-[7%] bg-white shadow-md text-sm px-3 py-1.5 rounded-full animate-float hidden lg:block">🇯🇵 Japanese</span>
-        <span class="absolute top-40 left-[8%] bg-white shadow-md text-sm px-3 py-1.5 rounded-full animate-float-delayed hidden lg:block">🇮🇳 Hindi</span>
-        <span class="absolute top-36 right-[10%] bg-white shadow-md text-sm px-3 py-1.5 rounded-full animate-float-slow hidden lg:block">🇸🇦 Arabic</span>
+        <span class="absolute -top-4 left-[10%] bg-white shadow-md text-sm px-3 py-1.5 rounded-full animate-float hidden lg:block">{{ heroLanguages[0].flag }} {{ heroLanguages[0].name }}</span>
+        <span class="absolute -top-2 right-[12%] bg-white shadow-md text-sm px-3 py-1.5 rounded-full animate-float-delayed hidden lg:block">{{ heroLanguages[1].flag }} {{ heroLanguages[1].name }}</span>
+        <span class="absolute top-16 left-[5%] bg-white shadow-md text-sm px-3 py-1.5 rounded-full animate-float-slow hidden lg:block">{{ heroLanguages[2].flag }} {{ heroLanguages[2].name }}</span>
+        <span class="absolute top-20 right-[7%] bg-white shadow-md text-sm px-3 py-1.5 rounded-full animate-float hidden lg:block">{{ heroLanguages[3].flag }} {{ heroLanguages[3].name }}</span>
+        <span class="absolute top-40 left-[8%] bg-white shadow-md text-sm px-3 py-1.5 rounded-full animate-float-delayed hidden lg:block">{{ heroLanguages[4].flag }} {{ heroLanguages[4].name }}</span>
+        <span class="absolute top-36 right-[10%] bg-white shadow-md text-sm px-3 py-1.5 rounded-full animate-float-slow hidden lg:block">{{ heroLanguages[5].flag }} {{ heroLanguages[5].name }}</span>
       </div>
 
       <h1 class="text-5xl sm:text-6xl lg:text-7xl font-extrabold text-gray-900 leading-tight tracking-tight">
@@ -80,11 +80,32 @@
 <section class="py-20 bg-gray-50">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
     <div class="text-center mb-10">
-      <h2 class="text-3xl sm:text-4xl font-bold text-gray-900">Popular Languages</h2>
-      <p class="mt-4 text-gray-500">Choose from 50+ languages and start your journey today.</p>
+      <h2 class="text-3xl sm:text-4xl font-bold text-gray-900">Indian Languages, Front and Center</h2>
+      <p class="mt-4 text-gray-500">Learn across India’s major languages with AI chat, vocabulary, and quiz practice built into the same experience.</p>
     </div>
+
+    <div class="rounded-3xl bg-white p-6 shadow-sm border border-gray-100 mb-8">
+      <div class="flex items-center justify-between gap-4 mb-5">
+        <div>
+          <h3 class="text-xl font-bold text-gray-900">Indian Language Spotlight</h3>
+          <p class="text-sm text-gray-500 mt-1">22 Indian languages available across BhashaAI flows.</p>
+        </div>
+        <a routerLink="/learn" class="text-sm font-semibold text-green-600 hover:text-green-700">Explore vocabulary</a>
+      </div>
+
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+        @for (lang of indianLanguages; track lang.code) {
+          <div class="rounded-2xl border border-gray-100 bg-gradient-to-br from-white to-green-50/50 p-5 text-center transition-all hover:-translate-y-1 hover:border-green-200 hover:shadow-lg">
+            <span class="text-3xl block mb-3">{{ lang.flag }}</span>
+            <h4 class="font-semibold text-gray-900 text-sm">{{ lang.name }}</h4>
+            <p class="text-xs text-gray-400 mt-1">{{ lang.learners }} learners</p>
+          </div>
+        }
+      </div>
+    </div>
+
     <div class="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-hide">
-      @for (lang of languages; track lang.name) {
+      @for (lang of globalLanguages; track lang.code) {
         <div class="flex-shrink-0 snap-start bg-white rounded-2xl p-6 w-44 text-center border border-gray-100 hover:border-green-200 hover:shadow-lg transition-all cursor-pointer group">
           <span class="text-4xl block mb-3">{{ lang.flag }}</span>
           <h4 class="font-semibold text-gray-900 text-sm">{{ lang.name }}</h4>

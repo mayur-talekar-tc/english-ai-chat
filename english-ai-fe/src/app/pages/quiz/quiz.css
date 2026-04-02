@@ -1,0 +1,22 @@
+.quiz-shell {
+  background:
+    radial-gradient(circle at top left, rgb(16 185 129 / 0.22), transparent 28%),
+    radial-gradient(circle at top right, rgb(14 165 233 / 0.22), transparent 22%),
+    linear-gradient(160deg, #020617 0%, #0f172a 42%, #111827 100%);
+}
+
+.quiz-card-enter {
+  animation: quiz-card-rise 360ms ease;
+}
+
+@keyframes quiz-card-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(18px) scale(0.985);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}

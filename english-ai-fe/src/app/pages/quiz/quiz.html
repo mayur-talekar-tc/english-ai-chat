@@ -1,144 +1,273 @@
-<section class="min-h-[calc(100vh-8rem)] bg-gray-50 py-12">
-  <div class="max-w-2xl mx-auto px-4">
+<section class="quiz-shell min-h-[calc(100vh-4rem)] py-12">
+  <div class="mx-auto max-w-5xl px-4 sm:px-6">
+    <div class="mb-8 flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
+      <div>
+        <p class="mb-2 text-sm font-semibold uppercase tracking-[0.28em] text-emerald-200/80">BhashaAI Quiz Arena</p>
+        <h1 class="text-4xl font-black tracking-tight text-white sm:text-5xl">AI quizzes for every Indian language journey</h1>
+        <p class="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
+          Generate a fresh 5-question round by language, category, and difficulty. Review the explanation after every answer and keep your streak alive.
+        </p>
+      </div>
 
-    @if (!quizComplete()) {
-      <!-- Header -->
-      <div class="flex items-center justify-between mb-6">
+      <div class="grid grid-cols-3 gap-3 sm:min-w-[360px]">
+        <div class="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur">
+          <p class="text-[11px] uppercase tracking-[0.2em] text-slate-400">XP</p>
+          <p class="mt-1 text-2xl font-bold text-white">{{ xp() }}</p>
+        </div>
+        <div class="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur">
+          <p class="text-[11px] uppercase tracking-[0.2em] text-slate-400">Streak</p>
+          <p class="mt-1 text-2xl font-bold text-white">{{ currentStreak() }}</p>
+        </div>
+        <div class="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur">
+          <p class="text-[11px] uppercase tracking-[0.2em] text-slate-400">Best</p>
+          <p class="mt-1 text-2xl font-bold text-white">{{ bestStreak() }}</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="mb-8 rounded-[2rem] border border-white/10 bg-slate-950/60 p-5 shadow-2xl shadow-slate-950/30 backdrop-blur">
+      <div class="grid gap-4 lg:grid-cols-[1.3fr_1fr]">
         <div>
-          <h1 class="text-2xl font-bold text-gray-900">English Quiz</h1>
-          <p class="text-sm text-gray-500 mt-1">Test your knowledge</p>
+          <label class="mb-2 block text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Language</label>
+          <select
+            [value]="selectedLanguage()"
+            (change)="onLanguageChange($event)"
+            class="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-white outline-none transition focus:border-emerald-300/60"
+          >
+            @for (language of languages; track language.code) {
+              <option class="bg-slate-900 text-white" [value]="language.code">{{ language.flag }} {{ language.name }}</option>
+            }
+          </select>
         </div>
-        <div class="bg-white rounded-xl border border-gray-200 px-4 py-2 flex items-center gap-2">
-          <svg class="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
-          </svg>
-          <span class="text-sm font-semibold text-gray-900">{{ score() }}/{{ questions.length }}</span>
+
+        <div>
+          <label class="mb-2 block text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Difficulty</label>
+          <select
+            [value]="selectedDifficulty()"
+            (change)="onDifficultyChange($event)"
+            class="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-white outline-none transition focus:border-emerald-300/60"
+          >
+            @for (difficulty of difficulties; track difficulty.id) {
+              <option class="bg-slate-900 text-white" [value]="difficulty.id">{{ difficulty.label }}</option>
+            }
+          </select>
         </div>
       </div>
 
-      <!-- Category Tabs -->
-      <div class="flex gap-2 mb-8">
-        <button (click)="onCategoryChange('grammar')"
-          class="px-4 py-2 rounded-full text-sm font-medium transition-all"
-          [class]="selectedCategory() === 'grammar' ? 'bg-green-500 text-white shadow-sm' : 'bg-white text-gray-600 border border-gray-200 hover:border-green-300'">
-          Grammar
-        </button>
-        <button (click)="onCategoryChange('vocabulary')"
-          class="px-4 py-2 rounded-full text-sm font-medium transition-all"
-          [class]="selectedCategory() === 'vocabulary' ? 'bg-green-500 text-white shadow-sm' : 'bg-white text-gray-600 border border-gray-200 hover:border-green-300'">
-          Vocabulary
-        </button>
-        <button (click)="onCategoryChange('phrases')"
-          class="px-4 py-2 rounded-full text-sm font-medium transition-all"
-          [class]="selectedCategory() === 'phrases' ? 'bg-green-500 text-white shadow-sm' : 'bg-white text-gray-600 border border-gray-200 hover:border-green-300'">
-          Phrases
+      <div class="mt-5 flex flex-wrap gap-3">
+        @for (category of categories; track category.id) {
+          <button
+            (click)="onCategoryChange(category.id)"
+            class="rounded-2xl border px-4 py-3 text-left transition-all"
+            [class]="selectedCategory() === category.id
+              ? 'border-emerald-300 bg-emerald-400/15 text-white shadow-lg shadow-emerald-900/20'
+              : 'border-white/10 bg-white/5 text-slate-300 hover:border-emerald-300/30 hover:bg-emerald-400/8 hover:text-white'"
+          >
+            <p class="text-sm font-semibold">{{ category.label }}</p>
+            <p class="mt-1 text-xs text-current/70">{{ category.description }}</p>
+          </button>
+        }
+      </div>
+    </div>
+
+    @if (isLoading()) {
+      <div class="rounded-[2rem] border border-white/10 bg-slate-950/60 px-8 py-14 text-center text-slate-300 backdrop-blur">
+        <div class="mx-auto mb-4 h-12 w-12 rounded-full border-4 border-white/10 border-t-emerald-300 animate-spin"></div>
+        <p class="text-lg font-semibold text-white">Generating your quiz...</p>
+        <p class="mt-2 text-sm">Building 5 fresh {{ selectedDifficulty() }} {{ selectedCategory() }} questions for {{ getSelectedLanguageLabel() }}.</p>
+      </div>
+    } @else if (error()) {
+      <div class="rounded-[2rem] border border-rose-400/30 bg-rose-500/10 px-8 py-10 text-center">
+        <p class="text-lg font-semibold text-white">{{ error() }}</p>
+        <button
+          (click)="loadQuiz()"
+          class="mt-4 rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-emerald-100"
+        >
+          Try Again
         </button>
       </div>
+    } @else if (!quizComplete()) {
+      @if (currentQuestion(); as question) {
+        <div class="mb-6 flex flex-col gap-3 rounded-[2rem] border border-white/10 bg-white/5 p-5 backdrop-blur md:flex-row md:items-center md:justify-between">
+          <div>
+            <p class="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Round Progress</p>
+            <p class="mt-2 text-lg font-semibold text-white">
+              Question {{ currentIndex() + 1 }} of {{ questions().length }}
+            </p>
+            <p class="mt-1 text-sm text-slate-300">{{ getSelectedLanguageLabel() }} • {{ selectedDifficulty() }} • {{ selectedCategory() }}</p>
+          </div>
 
-      <!-- Progress -->
-      <div class="mb-8">
-        <div class="flex justify-between items-center mb-2">
-          <span class="text-xs font-medium text-gray-500">Question {{ currentIndex() + 1 }} of {{ questions.length }}</span>
-          <span class="text-xs font-medium text-green-500">{{ progress | number:'1.0-0' }}%</span>
+          <div class="min-w-[220px]">
+            <div class="mb-2 flex items-center justify-between text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+              <span>Completion</span>
+              <span>{{ progress() | number:'1.0-0' }}%</span>
+            </div>
+            <div class="h-3 overflow-hidden rounded-full bg-white/10">
+              <div class="h-full rounded-full bg-gradient-to-r from-emerald-300 via-cyan-300 to-sky-400 transition-all duration-500" [style.width.%]="progress()"></div>
+            </div>
+          </div>
         </div>
-        <div class="w-full bg-gray-200 rounded-full h-2">
-          <div class="bg-green-500 h-2 rounded-full transition-all duration-500 ease-out" [style.width.%]="progress"></div>
-        </div>
-      </div>
 
-      <!-- Question Card -->
-      @if (currentQuestion) {
-        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 mb-6">
-          <h2 class="text-lg font-semibold text-gray-900 mb-6 leading-relaxed">{{ currentQuestion.question }}</h2>
-          <div class="space-y-3">
-            @for (option of currentQuestion.options; track option; let i = $index) {
+        <div class="quiz-card mb-6 rounded-[2rem] border border-white/10 bg-slate-950/70 p-6 shadow-2xl shadow-slate-950/30 backdrop-blur sm:p-8" [class.quiz-card-enter]="cardAnimating()">
+          <div class="mb-6 flex items-start justify-between gap-4">
+            <div>
+              <span class="inline-flex rounded-full border border-cyan-300/30 bg-cyan-400/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-cyan-200">
+                {{ selectedCategory() }}
+              </span>
+              <h2 class="mt-4 text-2xl font-bold leading-tight text-white sm:text-3xl">{{ question.question }}</h2>
+            </div>
+
+            <div class="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-right">
+              <p class="text-[11px] uppercase tracking-[0.22em] text-slate-400">Score</p>
+              <p class="mt-1 text-2xl font-bold text-white">{{ score() }}/{{ questions().length }}</p>
+            </div>
+          </div>
+
+          <div class="grid gap-3">
+            @for (option of question.options; track option; let i = $index) {
               <button
                 (click)="selectOption(i)"
-                class="w-full text-left px-5 py-4 rounded-xl border-2 text-sm font-medium transition-all flex items-center gap-3"
-                [class]="getOptionClass(i)"
                 [disabled]="answered()"
+                class="group flex w-full items-center gap-4 rounded-2xl border px-4 py-4 text-left text-sm font-medium transition-all sm:px-5 sm:py-5"
+                [class]="getOptionClass(i)"
               >
-                <span class="w-7 h-7 rounded-full border-2 flex items-center justify-center text-xs flex-shrink-0"
-                  [class]="answered() && i === currentQuestion.correctIndex ? 'border-green-500 bg-green-500 text-white' : answered() && i === selectedOption() && i !== currentQuestion.correctIndex ? 'border-red-400 bg-red-400 text-white' : 'border-current'"
+                <span
+                  class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl border text-sm font-bold transition-all"
+                  [class]="answered() && i === question.correct
+                    ? 'border-emerald-300 bg-emerald-300 text-slate-950'
+                    : answered() && i === selectedOption() && i !== question.correct
+                      ? 'border-rose-300 bg-rose-300 text-slate-950'
+                      : 'border-current/40 bg-white/5'"
                 >
-                  @if (answered() && i === currentQuestion.correctIndex) {
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
-                  } @else if (answered() && i === selectedOption() && i !== currentQuestion.correctIndex) {
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"/></svg>
+                  @if (answered() && i === question.correct) {
+                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
+                    </svg>
+                  } @else if (answered() && i === selectedOption() && i !== question.correct) {
+                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
                   } @else {
                     {{ ['A', 'B', 'C', 'D'][i] }}
                   }
                 </span>
-                {{ option }}
+
+                <div>
+                  <p class="text-base text-current">{{ option }}</p>
+                  <p class="mt-1 text-xs text-current/65">
+                    @if (!answered()) {
+                      Select to lock your answer.
+                    } @else if (i === question.correct) {
+                      This is the correct answer.
+                    } @else if (i === selectedOption()) {
+                      This was your choice.
+                    } @else {
+                      Compare this against the explanation below.
+                    }
+                  </p>
+                </div>
               </button>
             }
           </div>
         </div>
 
-        <!-- Feedback & Next Button -->
         @if (answered()) {
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-2">
-              @if (selectedOption() === currentQuestion.correctIndex) {
-                <span class="text-green-500 text-sm font-medium flex items-center gap-1">
-                  <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
-                  Correct!
-                </span>
-              } @else {
-                <span class="text-red-500 text-sm font-medium flex items-center gap-1">
-                  <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/></svg>
-                  Wrong!
-                </span>
-              }
+          <div class="rounded-[2rem] border p-6 backdrop-blur" [class]="selectedOption() === question.correct ? 'border-emerald-300/30 bg-emerald-400/10' : 'border-rose-300/30 bg-rose-400/10'">
+            <div class="mb-4 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+              <div>
+                <p class="text-sm font-semibold uppercase tracking-[0.22em]" [class]="selectedOption() === question.correct ? 'text-emerald-200' : 'text-rose-200'">
+                  @if (selectedOption() === question.correct) {
+                    Correct answer
+                  } @else {
+                    Review this one
+                  }
+                </p>
+                <h3 class="mt-2 text-xl font-bold text-white">
+                  @if (selectedOption() === question.correct) {
+                    +10 XP earned. Nice read.
+                  } @else {
+                    The right answer was {{ ['A', 'B', 'C', 'D'][question.correct] }}.
+                  }
+                </h3>
+              </div>
+
+              <div class="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-200">
+                <p>Current streak: <span class="font-semibold text-white">{{ currentStreak() }}</span></p>
+                <p class="mt-1">Best streak: <span class="font-semibold text-white">{{ bestStreak() }}</span></p>
+              </div>
             </div>
-            <button
-              (click)="nextQuestion()"
-              class="bg-green-500 hover:bg-green-600 text-white px-8 py-3 rounded-xl font-medium text-sm transition-all shadow-sm hover:shadow-md flex items-center gap-2"
-            >
-              @if (currentIndex() < questions.length - 1) {
-                Next Question
-              } @else {
-                See Results
-              }
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-            </button>
+
+            <p class="text-sm leading-7 text-slate-100">{{ question.explanation }}</p>
+
+            <div class="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p class="text-sm text-slate-300">
+                Correct option:
+                <span class="font-semibold text-white">{{ question.options[question.correct] }}</span>
+              </p>
+
+              <button
+                (click)="nextQuestion()"
+                class="inline-flex items-center justify-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-100"
+              >
+                @if (currentIndex() < questions().length - 1) {
+                  Next Question
+                } @else {
+                  See Results
+                }
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                </svg>
+              </button>
+            </div>
           </div>
         }
       }
-
     } @else {
-      <!-- Results -->
-      <div class="text-center py-12">
-        <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-10 max-w-md mx-auto">
-          @if (scorePercentage >= 80) {
-            <span class="text-6xl block mb-4">🎉</span>
-            <h2 class="text-2xl font-bold text-gray-900 mb-2">Excellent!</h2>
-          } @else if (scorePercentage >= 50) {
-            <span class="text-6xl block mb-4">👍</span>
-            <h2 class="text-2xl font-bold text-gray-900 mb-2">Good Job!</h2>
-          } @else {
-            <span class="text-6xl block mb-4">💪</span>
-            <h2 class="text-2xl font-bold text-gray-900 mb-2">Keep Practicing!</h2>
-          }
-          <p class="text-gray-500 mb-6">You scored</p>
-          <div class="mb-8">
-            <span class="text-5xl font-bold text-green-500">{{ score() }}</span>
-            <span class="text-2xl text-gray-400 font-medium">/{{ questions.length }}</span>
+      <div class="rounded-[2.2rem] border border-white/10 bg-slate-950/70 p-8 text-center shadow-2xl shadow-slate-950/30 backdrop-blur sm:p-12">
+        <p class="text-sm font-semibold uppercase tracking-[0.28em] text-emerald-200/80">Quiz Complete</p>
+        <h2 class="mt-3 text-4xl font-black tracking-tight text-white">Final Score: {{ score() }}/{{ questions().length }}</h2>
+        <p class="mx-auto mt-3 max-w-2xl text-base leading-7 text-slate-300">{{ performanceMessage() }}</p>
+
+        <div class="mx-auto mt-8 max-w-xl">
+          <div class="mb-3 flex items-center justify-between text-sm font-semibold text-slate-300">
+            <span>Accuracy</span>
+            <span>{{ scorePercentage() }}%</span>
           </div>
-          <div class="w-full bg-gray-200 rounded-full h-3 mb-8">
-            <div class="bg-green-500 h-3 rounded-full transition-all duration-1000" [style.width.%]="scorePercentage"></div>
+          <div class="h-4 overflow-hidden rounded-full bg-white/10">
+            <div class="h-full rounded-full bg-gradient-to-r from-emerald-300 via-cyan-300 to-sky-400 transition-all duration-700" [style.width.%]="scorePercentage()"></div>
           </div>
-          <div class="flex gap-3 justify-center">
-            <button
-              (click)="restartQuiz()"
-              class="bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-full font-medium text-sm transition-all shadow-lg shadow-green-500/25"
-            >
-              Try Again
-            </button>
+        </div>
+
+        <div class="mt-8 grid gap-3 sm:grid-cols-3">
+          <div class="rounded-2xl border border-white/10 bg-white/5 px-4 py-4">
+            <p class="text-xs uppercase tracking-[0.22em] text-slate-400">Total XP</p>
+            <p class="mt-2 text-3xl font-bold text-white">{{ xp() }}</p>
           </div>
+          <div class="rounded-2xl border border-white/10 bg-white/5 px-4 py-4">
+            <p class="text-xs uppercase tracking-[0.22em] text-slate-400">Best Streak</p>
+            <p class="mt-2 text-3xl font-bold text-white">{{ bestStreak() }}</p>
+          </div>
+          <div class="rounded-2xl border border-white/10 bg-white/5 px-4 py-4">
+            <p class="text-xs uppercase tracking-[0.22em] text-slate-400">Language</p>
+            <p class="mt-2 text-xl font-bold text-white">{{ getSelectedLanguageLabel() }}</p>
+          </div>
+        </div>
+
+        <div class="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
+          <button
+            (click)="loadQuiz()"
+            class="rounded-full bg-white px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-100"
+          >
+            Generate New Quiz
+          </button>
+          <button
+            (click)="restartQuiz()"
+            class="rounded-full border border-white/15 bg-white/5 px-6 py-3 text-sm font-semibold text-white transition hover:border-emerald-300/40 hover:bg-emerald-400/10"
+          >
+            Retry Same Round
+          </button>
         </div>
       </div>
     }
-
   </div>
 </section>

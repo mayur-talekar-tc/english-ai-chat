@@ -1,5 +1,6 @@
 import { Component, signal, computed, inject, OnDestroy } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
+import { AI_API_URL, API_BASE_URL } from '../../shared/api';
 
 @Component({
   selector: 'app-voice',
@@ -125,7 +126,7 @@ export class Voice implements OnDestroy {
 
     // Use backend TTS proxy (Google Translate voice - clear & loud)
     const audio = new Audio(
-      `http://127.0.0.1:3001/api/tts?text=${encodeURIComponent(t)}&lang=${lang}`
+      `${API_BASE_URL}/tts?text=${encodeURIComponent(t)}&lang=${lang}`
     );
     audio.volume = 1.0;
     audio.onended = () => this.isPlaying.set(false);
@@ -240,7 +241,7 @@ export class Voice implements OnDestroy {
     this.translation.set('');
     this.feedback.set('');
 
-    this.http.post<{ success: boolean; reply?: string }>('http://127.0.0.1:3001/api/ai/chat', {
+    this.http.post<{ success: boolean; reply?: string }>(`${AI_API_URL}/chat`, {
       message: `Translate the following ${langName} text to English. Only give the English translation, nothing else. No explanation, no extra text.\n\n"${text}"`,
       language: 'english',
     }).subscribe({
@@ -269,7 +270,7 @@ export class Voice implements OnDestroy {
     this.translation.set('');
     this.score.set(null);
 
-    this.http.post<{ success: boolean; reply?: string }>('http://127.0.0.1:3001/api/ai/chat', {
+    this.http.post<{ success: boolean; reply?: string }>(`${AI_API_URL}/chat`, {
       message: `The English sentence is: "${englishText}"
 The user tried to say this in ${langName}: "${spokenText}"
 

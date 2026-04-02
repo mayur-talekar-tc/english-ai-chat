@@ -3,6 +3,318 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-lite' });
 
+const QUIZ_FALLBACKS = {
+  vocabulary: [
+    {
+      question: 'Which word is closest in meaning to "helpful"?',
+      options: ['Kind', 'Lazy', 'Silent', 'Tiny'],
+      correct: 0,
+      explanation: '"Helpful" means useful or kind in action, so "Kind" is the best match.',
+    },
+    {
+      question: 'What does "rapid" mean?',
+      options: ['Slow', 'Fast', 'Broken', 'Bright'],
+      correct: 1,
+      explanation: '"Rapid" means fast or quick.',
+    },
+    {
+      question: 'Choose the best antonym for "ancient".',
+      options: ['Modern', 'Wide', 'Quiet', 'Strong'],
+      correct: 0,
+      explanation: '"Ancient" means very old, so its opposite is "Modern."',
+    },
+    {
+      question: 'What is the meaning of "beginner"?',
+      options: ['Expert', 'New learner', 'Teacher', 'Judge'],
+      correct: 1,
+      explanation: 'A beginner is someone who is just starting to learn.',
+    },
+    {
+      question: 'Which word means "very small"?',
+      options: ['Huge', 'Tiny', 'Brave', 'Polite'],
+      correct: 1,
+      explanation: '"Tiny" means very small.',
+    },
+  ],
+  grammar: [
+    {
+      question: 'Choose the correct sentence.',
+      options: ['She go to school.', 'She goes to school.', 'She going to school.', 'She gone to school.'],
+      correct: 1,
+      explanation: 'With "she" in the simple present, the verb takes "s": "goes."',
+    },
+    {
+      question: 'Fill in the blank: They _____ playing football.',
+      options: ['is', 'am', 'are', 'be'],
+      correct: 2,
+      explanation: '"They" takes "are" in the present continuous tense.',
+    },
+    {
+      question: 'Which sentence is in the past tense?',
+      options: ['I eat breakfast.', 'I am eating breakfast.', 'I ate breakfast.', 'I will eat breakfast.'],
+      correct: 2,
+      explanation: '"Ate" is the past-tense form of "eat."',
+    },
+    {
+      question: 'Choose the correct article: I saw _____ elephant.',
+      options: ['a', 'an', 'the', 'no article'],
+      correct: 1,
+      explanation: '"Elephant" starts with a vowel sound, so "an" is correct.',
+    },
+    {
+      question: 'Which sentence uses the plural noun correctly?',
+      options: ['Two child are here.', 'Two children are here.', 'Two childs are here.', 'Two children is here.'],
+      correct: 1,
+      explanation: 'The plural of "child" is "children," and it takes "are."',
+    },
+  ],
+  listening: [
+    {
+      question: 'In listening practice, what helps most with understanding fast speech?',
+      options: ['Ignoring stress patterns', 'Listening once only', 'Noticing key words and tone', 'Memorizing spelling only'],
+      correct: 2,
+      explanation: 'Key words, stress, and tone help listeners understand meaning even when speech is fast.',
+    },
+    {
+      question: 'What should you focus on first in a short audio clip?',
+      options: ['Every single word', 'Main idea', 'Punctuation', 'Handwriting'],
+      correct: 1,
+      explanation: 'Understanding the main idea first makes detailed listening easier.',
+    },
+    {
+      question: 'If you miss one word while listening, the best strategy is to:',
+      options: ['Stop paying attention', 'Guess from context and continue', 'Translate every word', 'Replay in your head only'],
+      correct: 1,
+      explanation: 'Good listeners use context and keep going instead of getting stuck.',
+    },
+    {
+      question: 'Which clue often shows that a speaker is asking a question?',
+      options: ['Flat tone', 'Rising intonation', 'Lower volume only', 'Slower handwriting'],
+      correct: 1,
+      explanation: 'Questions often use rising intonation in speech.',
+    },
+    {
+      question: 'Listening for connectors like "because" and "but" helps you understand:',
+      options: ['Speaker logic', 'Only pronunciation', 'Alphabet order', 'Typing speed'],
+      correct: 0,
+      explanation: 'Connectors show contrast, reason, and flow of ideas.',
+    },
+  ],
+  speaking: [
+    {
+      question: 'What improves speaking fluency most over time?',
+      options: ['Staying silent', 'Regular speaking practice', 'Only reading rules', 'Avoiding mistakes completely'],
+      correct: 1,
+      explanation: 'Fluency grows through consistent speaking practice, not perfection.',
+    },
+    {
+      question: 'If you forget a word while speaking, you should:',
+      options: ['Stop immediately', 'Use simpler words to explain it', 'Switch off the conversation', 'Repeat the same sound'],
+      correct: 1,
+      explanation: 'Paraphrasing keeps the conversation moving.',
+    },
+    {
+      question: 'Clear pronunciation depends a lot on:',
+      options: ['Speaking as fast as possible', 'Stress and mouth movement', 'Only grammar drills', 'Writing long essays'],
+      correct: 1,
+      explanation: 'Stress, rhythm, and articulation are central to understandable speech.',
+    },
+    {
+      question: 'Which habit helps build confidence while speaking?',
+      options: ['Waiting to be perfect', 'Using short, correct sentences first', 'Avoiding practice', 'Speaking without listening'],
+      correct: 1,
+      explanation: 'Short, accurate sentences help speakers build confidence steadily.',
+    },
+    {
+      question: 'What is the best response when you make a small speaking mistake?',
+      options: ['Quit the conversation', 'Correct it and continue', 'Hide your voice', 'Restart from the beginning every time'],
+      correct: 1,
+      explanation: 'Small self-corrections are normal and help communication continue smoothly.',
+    },
+  ],
+};
+
+function extractJsonBlock(text) {
+  if (!text) return null;
+
+  const fencedMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fencedMatch?.[1]) {
+    return fencedMatch[1].trim();
+  }
+
+  const objectStart = text.indexOf('{');
+  const objectEnd = text.lastIndexOf('}');
+  if (objectStart !== -1 && objectEnd !== -1 && objectEnd > objectStart) {
+    return text.slice(objectStart, objectEnd + 1);
+  }
+
+  return text.trim();
+}
+
+function parseJsonResponse(text) {
+  const jsonBlock = extractJsonBlock(text);
+  if (!jsonBlock) return null;
+
+  try {
+    return JSON.parse(jsonBlock);
+  } catch (error) {
+    console.error('[AI JSON Parse] Error:', error.message);
+    return null;
+  }
+}
+
+function getQuizFallbackQuestions(category) {
+  return QUIZ_FALLBACKS[category] || QUIZ_FALLBACKS.vocabulary;
+}
+
+function localizeFallbackQuestions(language, category) {
+  if (!language || ['english', 'spanish', 'french', 'japanese', 'german'].includes(String(language).toLowerCase())) {
+    return getQuizFallbackQuestions(category);
+  }
+
+  if (category === 'vocabulary') {
+    return [
+      {
+        question: "What is the correct " + language + " word for 'water'?",
+        options: ['पानी (Pani)', 'घर (Ghar)', 'किताब (Kitaab)', 'दोस्त (Dost)'],
+        correct: 0,
+        explanation: "'पानी (Pani)' means water. The other options mean house, book, and friend.",
+      },
+      {
+        question: "Choose the " + language + " word for 'mango'.",
+        options: ['आम (Aam)', 'सूरज (Suraj)', 'रास्ता (Raasta)', 'खाना (Khana)'],
+        correct: 0,
+        explanation: "'आम (Aam)' means mango. The other options mean sun, road, and food.",
+      },
+      {
+        question: "Which option means 'friend' in " + language + '?',
+        options: ['घर (Ghar)', 'दोस्त (Dost)', 'पानी (Pani)', 'स्कूल (School)'],
+        correct: 1,
+        explanation: "'दोस्त (Dost)' means friend. The other options mean house, water, and school.",
+      },
+      {
+        question: "Select the " + language + " word for 'book'.",
+        options: ['सूरज (Suraj)', 'किताब (Kitaab)', 'आम (Aam)', 'रास्ता (Raasta)'],
+        correct: 1,
+        explanation: "'किताब (Kitaab)' means book. The other options mean sun, mango, and road.",
+      },
+      {
+        question: "What is the " + language + " word for 'house'?",
+        options: ['खाना (Khana)', 'दोस्त (Dost)', 'घर (Ghar)', 'पानी (Pani)'],
+        correct: 2,
+        explanation: "'घर (Ghar)' means house. The other options mean food, friend, and water.",
+      },
+    ];
+  }
+
+  return getQuizFallbackQuestions(category);
+}
+
+function normalizeQuizQuestions(payload, category) {
+  const fallbackQuestions = getQuizFallbackQuestions(category);
+  const rawQuestions = Array.isArray(payload?.questions) ? payload.questions : [];
+
+  const questions = rawQuestions
+    .map((item, index) => {
+      const options = Array.isArray(item?.options)
+        ? item.options.filter((option) => typeof option === 'string' && option.trim()).slice(0, 4)
+        : [];
+
+      if (typeof item?.question !== 'string' || !item.question.trim() || options.length !== 4) {
+        return null;
+      }
+
+      let correct = Number.isInteger(item.correct) ? item.correct : -1;
+      if (correct < 0 || correct > 3) {
+        const stringCorrect = typeof item.correct === 'string' ? item.correct.trim() : '';
+        correct = options.findIndex((option) => option === stringCorrect);
+      }
+
+      if (correct < 0 || correct > 3) {
+        return null;
+      }
+
+      return {
+        question: item.question.trim(),
+        options,
+        correct,
+        explanation:
+          typeof item.explanation === 'string' && item.explanation.trim()
+            ? item.explanation.trim()
+            : `Option ${String.fromCharCode(65 + correct)} is correct for this question.`,
+      };
+    })
+    .filter(Boolean)
+    .slice(0, 5);
+
+  if (questions.length === 5) {
+    return questions;
+  }
+
+  return fallbackQuestions.map((question, index) => ({
+    ...question,
+    explanation:
+      question.explanation ||
+      `Option ${String.fromCharCode(65 + question.correct)} is correct for question ${index + 1}.`,
+  }));
+}
+
+function normalizeVocabularyWords(payload, language) {
+  const rawWords = Array.isArray(payload?.words) ? payload.words : [];
+
+  const words = rawWords
+    .map((item) => {
+      if (typeof item?.word !== 'string' || !item.word.trim()) {
+        return null;
+      }
+
+      const meaning =
+        typeof item.meaning === 'string' && item.meaning.trim() ? item.meaning.trim() : 'Meaning unavailable';
+
+      return {
+        word: item.word.trim(),
+        transliteration:
+          typeof item.transliteration === 'string' && item.transliteration.trim()
+            ? item.transliteration.trim()
+            : item.word.trim(),
+        meaning,
+        example:
+          typeof item.example === 'string' && item.example.trim()
+            ? item.example.trim()
+            : `${item.word.trim()} means ${meaning.toLowerCase()} in English.`,
+      };
+    })
+    .filter(Boolean)
+    .slice(0, 10);
+
+  if (words.length === 10) {
+    return words;
+  }
+
+  const fallbacks = [
+    { word: 'नमस्ते', transliteration: 'Namaste', meaning: 'Hello', example: 'नमस्ते, आप कैसे हैं?' },
+    { word: 'पानी', transliteration: 'Pani', meaning: 'Water', example: 'मुझे पानी चाहिए।' },
+    { word: 'घर', transliteration: 'Ghar', meaning: 'House', example: 'मेरा घर पास में है।' },
+    { word: 'आम', transliteration: 'Aam', meaning: 'Mango', example: 'मुझे आम खाना पसंद है।' },
+    { word: 'दोस्त', transliteration: 'Dost', meaning: 'Friend', example: 'वह मेरा अच्छा दोस्त है।' },
+    { word: 'किताब', transliteration: 'Kitaab', meaning: 'Book', example: 'यह किताब बहुत अच्छी है।' },
+    { word: 'स्कूल', transliteration: 'School', meaning: 'School', example: 'मैं रोज स्कूल जाता हूँ।' },
+    { word: 'सूरज', transliteration: 'Suraj', meaning: 'Sun', example: 'आज सूरज बहुत तेज है।' },
+    { word: 'खाना', transliteration: 'Khana', meaning: 'Food', example: 'खाना तैयार है।' },
+    { word: 'रास्ता', transliteration: 'Raasta', meaning: 'Road', example: 'यह रास्ता बाजार जाता है।' },
+  ];
+
+  return fallbacks.map((word) => ({
+    ...word,
+    example: `${word.example} (${language})`,
+  }));
+}
+
+async function generateModelText(prompt) {
+  const result = await model.generateContent(prompt);
+  return result.response.text();
+}
+
 exports.chat = async (req, res) => {
   try {
     const { message, language, userLevel } = req.body;
@@ -28,6 +340,93 @@ exports.chat = async (req, res) => {
     } else {
       res.json({ success: false, reply: 'Sorry, something went wrong. Please try again.' });
     }
+  }
+};
+
+exports.quiz = async (req, res) => {
+  const { language = 'English', difficulty = 'beginner', category = 'vocabulary', variationSeed = Date.now().toString() } = req.body || {};
+
+  try {
+    const prompt = `You are creating a language-learning multiple choice quiz.
+Return only valid JSON with this exact shape:
+{
+  "questions": [
+    {
+      "question": "string",
+      "options": ["string", "string", "string", "string"],
+      "correct": 0,
+      "explanation": "string"
+    }
+  ]
+}
+
+Rules:
+- Generate exactly 5 questions.
+- Category: ${category}
+- Difficulty: ${difficulty}
+- Target learner language: ${language}
+- Variation seed for this request: ${variationSeed}
+- The quiz should help the learner practice ${category}.
+- For Indian-language learning, prefer this pattern:
+  1. The question/instruction can be in simple English.
+  2. The 4 answer options should be in the target language script.
+  3. Add short transliteration in brackets when helpful.
+- Example style for Hindi: question in English, options like "पानी (Pani)", "घर (Ghar)".
+- Each question must have exactly 4 unique options.
+- "correct" must be the zero-based index of the correct option.
+- Explanation must say why the correct option is right and why a common wrong idea would be incorrect.
+- Make this set noticeably different from a typical previous set by changing examples, wording, and answer choices.
+- Keep language clear and classroom-friendly.`;
+
+    console.log('[AI Quiz] Request:', { language, difficulty, category, variationSeed });
+
+    const text = await generateModelText(prompt);
+    const parsed = parseJsonResponse(text);
+    const questions = normalizeQuizQuestions(parsed, category);
+
+    console.log('[AI Quiz] Success, questions:', questions.length);
+    res.json({ questions });
+  } catch (error) {
+    console.error('[AI Quiz] Error:', error.message);
+    res.json({ questions: localizeFallbackQuestions(language, category) });
+  }
+};
+
+exports.vocabulary = async (req, res) => {
+  const { language = 'Hindi' } = req.body || {};
+
+  try {
+    const prompt = `You are creating vocabulary flashcards for ${language}.
+Return only valid JSON with this exact shape:
+{
+  "words": [
+    {
+      "word": "string",
+      "transliteration": "string",
+      "meaning": "string",
+      "example": "string"
+    }
+  ]
+}
+
+Rules:
+- Generate exactly 10 everyday vocabulary words.
+- If the language uses a non-Latin script, "word" must use the native script and "transliteration" must be Romanized.
+- "meaning" must be the English meaning.
+- "example" should be a short natural example in the target language, optionally followed by a short English gloss only if needed.
+- Prefer beginner-friendly, practical vocabulary.`;
+
+    console.log('[AI Vocabulary] Request:', { language });
+
+    const text = await generateModelText(prompt);
+    const parsed = parseJsonResponse(text);
+    const words = normalizeVocabularyWords(parsed, language);
+
+    console.log('[AI Vocabulary] Success, words:', words.length);
+    res.json({ words });
+  } catch (error) {
+    console.error('[AI Vocabulary] Error:', error.message);
+    res.json({ words: normalizeVocabularyWords(null, language) });
   }
 };
 

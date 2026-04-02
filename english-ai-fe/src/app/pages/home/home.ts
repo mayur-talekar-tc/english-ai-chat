@@ -1,5 +1,6 @@
 import { Component } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { GLOBAL_LANGUAGE_OPTIONS, INDIAN_LANGUAGE_OPTIONS } from '../../shared/languages';
 
 @Component({
   selector: 'app-home',
@@ -8,17 +9,23 @@ import { RouterLink } from '@angular/router';
   styleUrl: './home.css',
 })
 export class Home {
-  languages = [
-    { flag: '🇺🇸', name: 'English', learners: '850K' },
-    { flag: '🇪🇸', name: 'Spanish', learners: '620K' },
-    { flag: '🇫🇷', name: 'French', learners: '480K' },
-    { flag: '🇯🇵', name: 'Japanese', learners: '390K' },
-    { flag: '🇮🇳', name: 'Hindi', learners: '310K' },
-    { flag: '🇸🇦', name: 'Arabic', learners: '270K' },
-    { flag: '🇩🇪', name: 'German', learners: '340K' },
-    { flag: '🇰🇷', name: 'Korean', learners: '420K' },
-    { flag: '🇨🇳', name: 'Mandarin', learners: '560K' },
-    { flag: '🇮🇹', name: 'Italian', learners: '250K' },
+  indianLanguages = INDIAN_LANGUAGE_OPTIONS.map((language, index) => ({
+    ...language,
+    learners: `${180 + index * 9}K`,
+  }));
+
+  globalLanguages = GLOBAL_LANGUAGE_OPTIONS.map((language, index) => ({
+    ...language,
+    learners: `${340 + index * 70}K`,
+  }));
+
+  heroLanguages = [
+    this.indianLanguages[0],
+    this.indianLanguages[1],
+    this.indianLanguages[2],
+    this.indianLanguages[3],
+    this.indianLanguages[4],
+    this.globalLanguages[0],
   ];
 
   features = [

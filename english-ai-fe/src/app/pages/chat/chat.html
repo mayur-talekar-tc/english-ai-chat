@@ -25,12 +25,9 @@
           (change)="onLanguageChange($event)"
           class="bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 text-xs font-medium text-gray-600 focus:outline-none focus:ring-2 focus:ring-green-500"
         >
-          <option value="english">🇺🇸 English</option>
-          <option value="spanish">🇪🇸 Spanish</option>
-          <option value="french">🇫🇷 French</option>
-          <option value="japanese">🇯🇵 Japanese</option>
-          <option value="hindi">🇮🇳 Hindi</option>
-          <option value="german">🇩🇪 German</option>
+          @for (language of languages; track language.code) {
+            <option [value]="language.code">{{ language.flag }} {{ language.name }}</option>
+          }
         </select>
         <button (click)="clearHistory()" class="p-1.5 rounded-lg hover:bg-gray-100 transition-colors" title="Clear chat">
           <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">

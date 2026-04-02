@@ -1,0 +1,25 @@
+.learn-shell {
+  background:
+    radial-gradient(circle at top left, rgb(251 191 36 / 0.24), transparent 24%),
+    radial-gradient(circle at top right, rgb(16 185 129 / 0.16), transparent 18%),
+    linear-gradient(180deg, #fff8eb 0%, #fff4df 38%, #f8fafc 100%);
+}
+
+.flashcard-inner {
+  transform-style: preserve-3d;
+  transition: transform 500ms ease;
+}
+
+.flashcard-front,
+.flashcard-back {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.flashcard-back {
+  transform: rotateY(180deg);
+}
+
+.flashcard-flipped .flashcard-inner {
+  transform: rotateY(180deg);
+}
