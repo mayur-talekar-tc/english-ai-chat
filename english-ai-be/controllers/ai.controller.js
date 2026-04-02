@@ -393,7 +393,8 @@ Rules:
 };
 
 exports.vocabulary = async (req, res) => {
-  const { language = 'Hindi' } = req.body || {};
+  const { language = 'Hindi', count = 10 } = req.body || {};
+  const wordCount = Math.min(Math.max(parseInt(count) || 10, 1), 30);
 
   try {
     const prompt = `You are creating vocabulary flashcards for ${language}.
@@ -410,7 +411,7 @@ Return only valid JSON with this exact shape:
 }
 
 Rules:
-- Generate exactly 10 everyday vocabulary words.
+- Generate exactly ${wordCount} everyday vocabulary words.
 - If the language uses a non-Latin script, "word" must use the native script and "transliteration" must be Romanized.
 - "meaning" must be the English meaning.
 - "example" should be a short natural example in the target language, optionally followed by a short English gloss only if needed.

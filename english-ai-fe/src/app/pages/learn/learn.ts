@@ -33,6 +33,7 @@ export class Learn {
   masteredIndices = signal<number[]>([]);
   words = signal<VocabularyWord[]>([]);
   isLoading = signal(false);
+  isLoadingMore = signal(false);
   error = signal('');
 
   currentCard = computed(() => this.words()[this.currentIndex()] ?? null);
@@ -88,7 +89,7 @@ export class Learn {
 
     const languageName = this.currentLanguage()?.name ?? 'Hindi';
 
-    this.http.post<VocabularyResponse>(`${AI_API_URL}/vocabulary`, { language: languageName }).subscribe({
+    this.http.post<VocabularyResponse>(`${AI_API_URL}/vocabulary`, { language: languageName, count: 20 }).subscribe({
       next: (response) => {
         const words = Array.isArray(response.words) ? response.words : [];
         this.words.set(words);
@@ -100,6 +101,26 @@ export class Learn {
       error: () => {
         this.isLoading.set(false);
         this.error.set('Vocabulary service is unavailable right now. Try again shortly.');
+      },
+    });
+  }
+
+  loadMoreWords() {
+    if (this.isLoadingMore()) return;
+    this.isLoadingMore.set(true);
+
+    const languageName = this.currentLanguage()?.name ?? 'Hindi';
+
+    this.http.post<VocabularyResponse>(`${AI_API_URL}/vocabulary`, { language: languageName, count: 10 }).subscribe({
+      next: (response) => {
+        const newWords = Array.isArray(response.words) ? response.words : [];
+        if (newWords.length) {
+          this.words.update(existing => [...existing, ...newWords]);
+        }
+        this.isLoadingMore.set(false);
+      },
+      error: () => {
+        this.isLoadingMore.set(false);
       },
     });
   }
