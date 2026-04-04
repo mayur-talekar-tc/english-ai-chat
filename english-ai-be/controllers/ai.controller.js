@@ -1,7 +1,6 @@
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const Groq = require('groq-sdk');
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-lite' });
+const groq = new Groq({ apiKey: process.env.GROQ_CLOUD });
 
 const QUIZ_FALLBACKS = {
   vocabulary: [
@@ -311,8 +310,11 @@ function normalizeVocabularyWords(payload, language) {
 }
 
 async function generateModelText(prompt) {
-  const result = await model.generateContent(prompt);
-  return result.response.text();
+  const result = await groq.chat.completions.create({
+    model: 'llama-3.1-8b-instant',
+    messages: [{ role: 'user', content: prompt }],
+  });
+  return result.choices[0].message.content;
 }
 
 exports.chat = async (req, res) => {
@@ -326,8 +328,7 @@ exports.chat = async (req, res) => {
 
     console.log('[AI Chat] Request:', { message, language, userLevel });
 
-    const result = await model.generateContent(prompt);
-    const reply = result.response.text();
+    const reply = await generateModelText(prompt);
 
     console.log('[AI Chat] Success, reply length:', reply.length);
     res.json({ success: true, reply });
@@ -504,8 +505,7 @@ exports.correct = async (req, res) => {
 
     console.log('[AI Correct] Request:', { text, language });
 
-    const result = await model.generateContent(prompt);
-    const reply = result.response.text();
+    const reply = await generateModelText(prompt);
 
     console.log('[AI Correct] Success');
     res.json({ success: true, reply });
