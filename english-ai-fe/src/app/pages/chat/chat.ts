@@ -2,16 +2,15 @@ import { Component, signal, inject, ElementRef, ViewChild, OnInit } from '@angul
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { AI_API_URL } from '../../shared/api';
-import { SUPPORTED_LANGUAGE_OPTIONS } from '../../shared/languages';
 
 interface ChatMessage {
   role: 'user' | 'ai';
   content: string;
   timestamp: string;
+  translation?: string;
 }
 
 const STORAGE_KEY = 'bhashaai_chat_history';
-const LANG_KEY = 'bhashaai_chat_language';
 
 @Component({
   selector: 'app-chat',
@@ -24,22 +23,12 @@ export class Chat implements OnInit {
 
   @ViewChild('chatContainer') chatContainer!: ElementRef;
 
-  readonly languages = SUPPORTED_LANGUAGE_OPTIONS;
-
-  selectedLanguage = signal('english');
   userMessage = signal('');
   isLoading = signal(false);
-
   messages = signal<ChatMessage[]>([]);
 
   ngOnInit() {
     this.loadHistory();
-  }
-
-  onLanguageChange(event: Event) {
-    const select = event.target as HTMLSelectElement;
-    this.selectedLanguage.set(select.value);
-    localStorage.setItem(LANG_KEY, select.value);
   }
 
   sendMessage() {
@@ -53,15 +42,18 @@ export class Chat implements OnInit {
     this.saveHistory();
     this.scrollToBottom();
 
+    // Send last 5 messages as history
+    const allMsgs = this.messages();
+    const historyToSend = allMsgs.slice(-6, -1).map(m => ({ role: m.role, content: m.content }));
+
     this.http
-      .post<{ success: boolean; reply: string; error?: string }>(`${AI_API_URL}/chat`, {
+      .post<{ success: boolean; reply: string; translation?: string }>(`${AI_API_URL}/chat`, {
         message: msg,
-        language: this.selectedLanguage(),
+        history: historyToSend,
       })
       .subscribe({
         next: (res) => {
-          const content = res.reply || 'Something went wrong.';
-          const aiMsg: ChatMessage = { role: 'ai', content, timestamp: new Date().toISOString() };
+          const aiMsg: ChatMessage = { role: 'ai', content: res.reply || 'Something went wrong.', timestamp: new Date().toISOString(), translation: res.translation || '' };
           this.messages.update(msgs => [...msgs, aiMsg]);
           this.isLoading.set(false);
           this.saveHistory();
@@ -95,9 +87,6 @@ export class Chat implements OnInit {
   }
 
   private loadHistory() {
-    const savedLang = localStorage.getItem(LANG_KEY);
-    if (savedLang) this.selectedLanguage.set(savedLang);
-
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       try {
@@ -115,15 +104,14 @@ export class Chat implements OnInit {
   private getWelcomeMessage(): ChatMessage {
     return {
       role: 'ai',
-      content: "Hello! I'm your BhashaAI language tutor. How can I help you learn today? You can ask me about grammar, vocabulary, or just practice a conversation!",
+      content: "Hello! I'm Bhasha AI. Type in any language — I'll reply in the same language! Ask me anything.",
       timestamp: new Date().toISOString(),
     };
   }
 
   private saveHistory() {
     const msgs = this.messages();
-    const toSave = msgs.slice(-50);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(msgs.slice(-50)));
   }
 
   private scrollToBottom() {

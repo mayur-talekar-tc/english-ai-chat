@@ -4,10 +4,10 @@
     <div class="max-w-3xl mx-auto flex items-center justify-between">
       <div class="flex items-center gap-3">
         <div class="w-9 h-9 bg-green-500 rounded-full flex items-center justify-center">
-          <span class="text-white text-xs font-bold">AI</span>
+          <span class="text-white text-xs font-bold">MT</span>
         </div>
         <div>
-          <h2 class="text-sm font-semibold text-gray-900">BhashaAI Tutor</h2>
+          <h2 class="text-sm font-semibold text-gray-900">Bhasha AI</h2>
           <div class="flex items-center gap-1.5">
             @if (isLoading()) {
               <span class="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></span>
@@ -19,22 +19,11 @@
           </div>
         </div>
       </div>
-      <div class="flex items-center gap-2">
-        <select
-          [value]="selectedLanguage()"
-          (change)="onLanguageChange($event)"
-          class="bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 text-xs font-medium text-gray-600 focus:outline-none focus:ring-2 focus:ring-green-500"
-        >
-          @for (language of languages; track language.code) {
-            <option [value]="language.code">{{ language.flag }} {{ language.name }}</option>
-          }
-        </select>
-        <button (click)="clearHistory()" class="p-1.5 rounded-lg hover:bg-gray-100 transition-colors" title="Clear chat">
-          <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-          </svg>
-        </button>
-      </div>
+      <button (click)="clearHistory()" class="p-1.5 rounded-lg hover:bg-gray-100 transition-colors" title="Clear chat">
+        <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+        </svg>
+      </button>
     </div>
   </div>
 
@@ -43,16 +32,19 @@
     <div class="max-w-3xl mx-auto space-y-6">
       @for (message of messages(); track $index) {
         @if (message.role === 'ai') {
-          <div class="flex items-start gap-3">
+          <div class="flex items-start gap-3 chat-message-enter">
             <div class="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-              <span class="text-white text-[10px] font-bold">AI</span>
+              <span class="text-white text-[10px] font-bold">MT</span>
             </div>
             <div class="bg-white rounded-2xl rounded-tl-md px-4 py-3 max-w-[80%] shadow-sm border border-gray-100">
               <p class="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{{ message.content }}</p>
+              @if (message.translation) {
+                <p class="text-xs text-gray-400 italic mt-2 pt-2 border-t border-gray-100 leading-relaxed">Translation: {{ message.translation }}</p>
+              }
             </div>
           </div>
         } @else {
-          <div class="flex items-start gap-3 justify-end">
+          <div class="flex items-start gap-3 justify-end chat-message-enter">
             <div class="bg-green-500 rounded-2xl rounded-tr-md px-4 py-3 max-w-[80%]">
               <p class="text-sm text-white leading-relaxed whitespace-pre-wrap">{{ message.content }}</p>
             </div>
@@ -62,9 +54,9 @@
 
       <!-- Typing Indicator -->
       @if (isLoading()) {
-        <div class="flex items-start gap-3">
+        <div class="flex items-start gap-3 chat-message-enter">
           <div class="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
-            <span class="text-white text-[10px] font-bold">AI</span>
+            <span class="text-white text-[10px] font-bold">MT</span>
           </div>
           <div class="bg-white rounded-2xl rounded-tl-md px-4 py-3 shadow-sm border border-gray-100">
             <div class="flex items-center gap-1.5">
@@ -87,7 +79,7 @@
           [ngModel]="userMessage()"
           (ngModelChange)="userMessage.set($event)"
           (keydown)="onKeyDown($event)"
-          placeholder="Type your message..."
+          placeholder="Type in any language..."
           class="flex-1 bg-transparent text-sm text-gray-700 placeholder-gray-400 focus:outline-none"
           [disabled]="isLoading()"
         />
@@ -102,7 +94,7 @@
           </svg>
         </button>
       </div>
-      <p class="text-[10px] text-gray-400 text-center mt-2">BhashaAI can make mistakes. Verify important info.</p>
+      <p class="text-[10px] text-gray-400 text-center mt-2">Bhasha AI auto-detects your language and replies in the same language.</p>
     </div>
   </div>
 </section>

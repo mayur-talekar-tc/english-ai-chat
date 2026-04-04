@@ -317,21 +317,82 @@ async function generateModelText(prompt) {
   return result.choices[0].message.content;
 }
 
+async function generateChatWithHistory(systemPrompt, history) {
+  const messages = [
+    { role: 'system', content: systemPrompt },
+    ...history,
+  ];
+  const result = await groq.chat.completions.create({
+    model: 'llama-3.3-70b-versatile',
+    messages,
+    temperature: 0.7,
+  });
+  return result.choices[0].message.content;
+}
+
 exports.chat = async (req, res) => {
   try {
-    const { message, language, userLevel } = req.body;
+    const { message, history } = req.body;
 
-    const prompt = `You are a ${language} language tutor.
-    Student level: ${userLevel || 'beginner'}.
-    Teach in a friendly, simple way.
-    Student says: ${message}`;
+    const systemPrompt = `You are a friendly conversational AI assistant who is fluent in all Indian and world languages.
 
-    console.log('[AI Chat] Request:', { message, language, userLevel });
+RULES:
+1. Detect the EXACT language the user is writing in.
+2. Reply ONLY in that same language - naturally, correctly and fluently.
+3. Be natural, friendly and conversational.
+4. Do NOT give wrong, irrelevant or nonsensical responses.
+5. Do NOT mix up languages. Marathi is NOT Hindi. Tamil is NOT Telugu.
+6. If user writes in Romanized script (like "kasa ahes"), reply in Romanized script of THAT SAME language.
 
-    const reply = await generateModelText(prompt);
+MARATHI examples (learn these patterns):
+- "kasa ahes" / "kasa aahes" = How are you → Reply: "Mi ekdam barobar ahe! Tumhi kase aahat?" (I am perfectly fine! How are you?)
+- "kay karto" = What are you doing → Reply: "Mi tumchi madad karayala tayar ahe!" (I am ready to help you!)
+- "dhanyawad" = Thank you → Reply: "Tumche swagat aahe!" (You're welcome!)
+
+HINDI examples:
+- "kaise ho" = How are you → Reply: "Main bahut accha hoon! Aap kaise hain?" (I am very good! How are you?)
+- "namaste" = Hello → Reply: "Namaste! Kaise madad kar sakta hoon?" (Hello! How can I help?)
+
+ENGLISH examples:
+- "hey" / "hello" → Reply: "Hey! How can I help you today?"
+- "how are you" → Reply: "I'm doing great! How can I help you?"
+
+IMPORTANT: You MUST respond in this exact JSON format and nothing else:
+{"reply": "your natural conversational response in detected language", "translation": "English translation of your reply"}
+
+If the user is already writing in English, set translation to the same text as reply.
+Return ONLY valid JSON. No markdown, no code fences, no extra text.`;
+
+    // Build conversation history (last 5 messages)
+    const chatHistory = [];
+    if (Array.isArray(history)) {
+      const recentHistory = history.slice(-5);
+      for (const msg of recentHistory) {
+        if (msg.role === 'user') {
+          chatHistory.push({ role: 'user', content: msg.content });
+        } else if (msg.role === 'ai') {
+          chatHistory.push({ role: 'assistant', content: msg.content });
+        }
+      }
+    }
+    chatHistory.push({ role: 'user', content: message });
+
+    console.log('[AI Chat] Request:', { message, historyLength: chatHistory.length });
+
+    const rawReply = await generateChatWithHistory(systemPrompt, chatHistory);
+
+    // Parse JSON response from AI
+    let reply = rawReply;
+    let translation = '';
+
+    const parsed = parseJsonResponse(rawReply);
+    if (parsed && parsed.reply) {
+      reply = parsed.reply;
+      translation = parsed.translation || '';
+    }
 
     console.log('[AI Chat] Success, reply length:', reply.length);
-    res.json({ success: true, reply });
+    res.json({ success: true, reply, translation });
 
   } catch (error) {
     console.error('[AI Chat] Error:', error.message);
@@ -341,6 +402,31 @@ exports.chat = async (req, res) => {
     } else {
       res.json({ success: false, reply: 'Sorry, something went wrong. Please try again.' });
     }
+  }
+};
+
+exports.translate = async (req, res) => {
+  try {
+    const { text, targetLanguage } = req.body;
+
+    if (!text || !text.trim()) {
+      return res.json({ success: false, error: 'Text is required' });
+    }
+
+    const target = targetLanguage || 'English';
+    const prompt = `Translate the following text to ${target}. Return ONLY the translation, nothing else. No explanations, no quotes, just the translated text.
+
+Text: ${text}`;
+
+    console.log('[AI Translate] Request:', { textLength: text.length, targetLanguage: target });
+
+    const translation = await generateModelText(prompt);
+
+    console.log('[AI Translate] Success');
+    res.json({ success: true, translation: translation.trim() });
+  } catch (error) {
+    console.error('[AI Translate] Error:', error.message);
+    res.json({ success: false, error: 'Translation service unavailable' });
   }
 };
 
