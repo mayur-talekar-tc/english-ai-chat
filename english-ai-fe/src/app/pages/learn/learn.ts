@@ -1,566 +1,329 @@
 import { Component, computed, inject, signal } from '@angular/core';
-import { DecimalPipe } from '@angular/common';
-import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { AI_API_URL } from '../../shared/api';
-import { SUPPORTED_LANGUAGE_OPTIONS, getLanguageOption, isIndianLanguage } from '../../shared/languages';
+import { INDIAN_LANGUAGE_OPTIONS } from '../../shared/languages';
 
-interface VocabularyWord {
-  word: string;
+interface DailyWord {
+  english: string;
+  native: string;
   transliteration: string;
   meaning: string;
   example: string;
+  emoji: string;
+  category: string;
 }
 
-interface VocabularyResponse {
-  words?: VocabularyWord[];
+interface DayHistory {
+  date: string;
+  label: string;
+  words: DailyWord[];
+  level: string;
 }
 
-interface WordDetails {
-  word: string;
-  transliteration: string;
-  meaning: string;
-  examples: string[];
-  synonyms: string[];
-  antonyms: string[];
-  usageTips: string;
-  difficulty: string;
-}
+type LearnTab = 'today' | 'previous';
+type Level = 'school' | 'adults';
 
-interface QuizQuestion {
-  question: string;
-  options: string[];
-  correctIndex: number;
-}
-
-type LearnTab = 'cards' | 'favorites' | 'mastered' | 'review';
-type DailyGoal = 5 | 10 | 20;
-
-const FAVORITES_KEY = 'bhashaai_favorites';
-const WOTD_KEY = 'bhashaai_wotd';
-const GOAL_KEY = 'bhashaai_daily_goal';
+const DAILY_WORDS_KEY = 'bhashaai_daily_words';
 const STREAK_KEY = 'bhashaai_learn_streak';
-const REVIEW_KEY = 'bhashaai_review_words';
-const DAILY_PROGRESS_KEY = 'bhashaai_daily_progress';
+const LEARNED_KEY = 'bhashaai_learned_history';
+const LEVEL_KEY = 'bhashaai_learn_level';
+const LANG_KEY = 'bhashaai_learn_language';
 
-const CATEGORIES = [
-  { id: '', label: 'All Topics', icon: 'shuffle' },
-  { id: 'food', label: 'Food', icon: 'utensils' },
-  { id: 'travel', label: 'Travel', icon: 'plane' },
-  { id: 'business', label: 'Business', icon: 'briefcase' },
-  { id: 'daily-life', label: 'Daily Life', icon: 'home' },
-  { id: 'emotions', label: 'Emotions', icon: 'heart' },
-  { id: 'numbers', label: 'Numbers', icon: 'hash' },
-  { id: 'colors', label: 'Colors', icon: 'palette' },
-  { id: 'family', label: 'Family', icon: 'users' },
-  { id: 'body-parts', label: 'Body Parts', icon: 'body' },
-  { id: 'nature', label: 'Nature', icon: 'leaf' },
-];
+const CATEGORY_COLORS: Record<string, string> = {
+  Animals: 'bg-amber-100 text-amber-700 border-amber-200',
+  Fruits: 'bg-red-100 text-red-700 border-red-200',
+  Vegetables: 'bg-green-100 text-green-700 border-green-200',
+  Colors: 'bg-purple-100 text-purple-700 border-purple-200',
+  Numbers: 'bg-blue-100 text-blue-700 border-blue-200',
+  'Body Parts': 'bg-pink-100 text-pink-700 border-pink-200',
+  Family: 'bg-rose-100 text-rose-700 border-rose-200',
+  'School Items': 'bg-indigo-100 text-indigo-700 border-indigo-200',
+  Food: 'bg-orange-100 text-orange-700 border-orange-200',
+  Nature: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+  Business: 'bg-slate-100 text-slate-700 border-slate-200',
+  Technology: 'bg-cyan-100 text-cyan-700 border-cyan-200',
+  Health: 'bg-teal-100 text-teal-700 border-teal-200',
+  Travel: 'bg-sky-100 text-sky-700 border-sky-200',
+  Emotions: 'bg-fuchsia-100 text-fuchsia-700 border-fuchsia-200',
+  Society: 'bg-violet-100 text-violet-700 border-violet-200',
+  Science: 'bg-lime-100 text-lime-700 border-lime-200',
+  'Daily Life': 'bg-yellow-100 text-yellow-700 border-yellow-200',
+};
 
 @Component({
   selector: 'app-learn',
-  imports: [FormsModule, DecimalPipe],
+  imports: [],
   templateUrl: './learn.html',
   styleUrl: './learn.css',
 })
 export class Learn {
   private http = inject(HttpClient);
 
-  readonly languages = SUPPORTED_LANGUAGE_OPTIONS;
-  readonly categories = CATEGORIES;
-  readonly goalOptions: DailyGoal[] = [5, 10, 20];
+  readonly indianLanguages = INDIAN_LANGUAGE_OPTIONS;
 
-  // Core state
+  activeTab = signal<LearnTab>('today');
+  level = signal<Level>('school');
   selectedLanguage = signal('hindi');
-  selectedCategory = signal('');
+  words = signal<DailyWord[]>([]);
   currentIndex = signal(0);
   isFlipped = signal(false);
-  masteredIndices = signal<number[]>([]);
-  words = signal<VocabularyWord[]>([]);
   isLoading = signal(false);
-  isLoadingMore = signal(false);
-  error = signal('');
-  activeTab = signal<LearnTab>('cards');
-
-  // Word of the Day
-  wordOfTheDay = signal<VocabularyWord | null>(null);
-  wotdShared = signal(false);
-
-  // Favorites
-  favorites = signal<VocabularyWord[]>([]);
-
-  // Word Details (expanded view)
-  showWordDetails = signal(false);
-  wordDetails = signal<WordDetails | null>(null);
-  isLoadingDetails = signal(false);
-  selectedDetailWord = signal<VocabularyWord | null>(null);
-
-  // Quick Quiz
-  showQuiz = signal(false);
-  quizQuestions = signal<QuizQuestion[]>([]);
-  quizIndex = signal(0);
-  quizAnswered = signal<number | null>(null);
-  quizScore = signal(0);
-  quizComplete = signal(false);
-
-  // Daily Goal
-  dailyGoal = signal<DailyGoal>(10);
-  dailyProgress = signal(0);
+  learnedIndices = signal<Set<number>>(new Set());
+  reviewIndices = signal<Set<number>>(new Set());
+  todayComplete = signal(false);
   streak = signal(0);
-  showGoalCelebration = signal(false);
-
-  // Review Mode
-  reviewWords = signal<VocabularyWord[]>([]);
-  skippedIndices = signal<number[]>([]);
-
-  // Search
-  masteredSearch = signal('');
-  favoritesSearch = signal('');
+  dailyHistory = signal<DayHistory[]>([]);
+  reviewingDay = signal<DayHistory | null>(null);
 
   // Computed
   currentCard = computed(() => this.words()[this.currentIndex()] ?? null);
-  progress = computed(() => {
-    const total = this.words().length;
-    if (!total) return 0;
-    return ((this.currentIndex() + 1) / total) * 100;
-  });
-  masteredCount = computed(() => this.masteredIndices().length);
-  currentLanguage = computed(() => getLanguageOption(this.selectedLanguage()));
-  isIndianSelection = computed(() => isIndianLanguage(this.selectedLanguage()));
-  selectedCategoryLabel = computed(() => this.categories.find(c => c.id === this.selectedCategory())?.label ?? 'All Topics');
-
+  learnedCount = computed(() => this.learnedIndices().size);
+  totalWords = computed(() => this.words().length);
   goalProgress = computed(() => {
-    const goal = this.dailyGoal();
-    if (!goal) return 0;
-    return Math.min((this.dailyProgress() / goal) * 100, 100);
+    const total = this.totalWords();
+    if (!total) return 0;
+    return Math.min((this.learnedCount() / total) * 100, 100);
   });
-  goalComplete = computed(() => this.dailyProgress() >= this.dailyGoal());
-
-  filteredMastered = computed(() => {
-    const search = this.masteredSearch().toLowerCase().trim();
-    const indices = this.masteredIndices();
-    const allWords = this.words();
-    const mastered = indices.map(i => allWords[i]).filter(Boolean);
-    if (!search) return mastered;
-    return mastered.filter(w =>
-      w.word.toLowerCase().includes(search) ||
-      w.meaning.toLowerCase().includes(search) ||
-      w.transliteration.toLowerCase().includes(search)
-    );
-  });
-
-  filteredFavorites = computed(() => {
-    const search = this.favoritesSearch().toLowerCase().trim();
-    const favs = this.favorites();
-    if (!search) return favs;
-    return favs.filter(w =>
-      w.word.toLowerCase().includes(search) ||
-      w.meaning.toLowerCase().includes(search) ||
-      w.transliteration.toLowerCase().includes(search)
-    );
-  });
-
-  reviewDueCount = computed(() => this.reviewWords().length);
-
-  isFavorited = computed(() => {
-    const card = this.currentCard();
-    if (!card) return false;
-    return this.favorites().some(f => f.word === card.word && f.meaning === card.meaning);
+  goalComplete = computed(() => this.learnedCount() >= this.totalWords() && this.totalWords() > 0);
+  levelLabel = computed(() => this.level() === 'school' ? 'School' : 'Adults');
+  selectedLanguageName = computed(() => {
+    const lang = this.indianLanguages.find(l => l.code === this.selectedLanguage());
+    return lang ? lang.name : 'Hindi';
   });
 
   constructor() {
-    this.loadFavorites();
-    this.loadWordOfTheDay();
-    this.loadDailyGoal();
+    this.loadLevel();
+    this.loadLanguage();
     this.loadStreak();
-    this.loadDailyProgress();
-    this.loadReviewWords();
-    this.loadVocabulary();
+    this.loadHistory();
+    this.loadTodayWords();
   }
 
-  // === TAB SWITCHING ===
   setTab(tab: LearnTab) {
     this.activeTab.set(tab);
-    if (tab === 'review') {
-      this.loadReviewWords();
+    if (tab === 'previous') {
+      this.loadHistory();
+      this.reviewingDay.set(null);
     }
   }
 
-  // === WORD OF THE DAY ===
-  private loadWordOfTheDay() {
+  onLevelChange(event: Event) {
+    const select = event.target as HTMLSelectElement;
+    const newLevel = select.value as Level;
+    this.level.set(newLevel);
+    localStorage.setItem(LEVEL_KEY, newLevel);
+    // Reload words for new level
+    this.todayComplete.set(false);
+    this.learnedIndices.set(new Set());
+    this.reviewIndices.set(new Set());
+    this.currentIndex.set(0);
+    this.isFlipped.set(false);
+    this.fetchDailyWords(new Date().toISOString().split('T')[0]);
+  }
+
+  private loadLevel() {
+    const saved = localStorage.getItem(LEVEL_KEY);
+    if (saved === 'school' || saved === 'adults') {
+      this.level.set(saved);
+    }
+  }
+
+  private loadLanguage() {
+    const saved = localStorage.getItem(LANG_KEY);
+    if (saved) {
+      this.selectedLanguage.set(saved);
+    }
+  }
+
+  onLanguageChange(event: Event) {
+    const select = event.target as HTMLSelectElement;
+    this.selectedLanguage.set(select.value);
+    localStorage.setItem(LANG_KEY, select.value);
+    // Reload words for new language
+    this.todayComplete.set(false);
+    this.learnedIndices.set(new Set());
+    this.reviewIndices.set(new Set());
+    this.currentIndex.set(0);
+    this.isFlipped.set(false);
+    this.fetchDailyWords(new Date().toISOString().split('T')[0]);
+  }
+
+  // === LOAD TODAY'S WORDS ===
+  private loadTodayWords() {
     const today = new Date().toISOString().split('T')[0];
-    const saved = localStorage.getItem(WOTD_KEY);
+    const saved = localStorage.getItem(DAILY_WORDS_KEY);
+
     if (saved) {
       try {
         const data = JSON.parse(saved);
-        if (data.date === today && data.word) {
-          this.wordOfTheDay.set(data.word);
+        if (data.date === today && data.level === this.level() && data.language === this.selectedLanguage() && Array.isArray(data.words) && data.words.length > 0) {
+          this.words.set(data.words);
+          const learned = new Set<number>(data.learned || []);
+          this.learnedIndices.set(learned);
+          if (learned.size >= data.words.length) {
+            this.todayComplete.set(true);
+          }
           return;
         }
       } catch {}
     }
-    this.fetchWordOfTheDay(today);
+
+    this.fetchDailyWords(today);
   }
 
-  private fetchWordOfTheDay(today: string) {
-    const languageName = this.currentLanguage()?.name ?? 'Hindi';
-    this.http.post<VocabularyResponse>(`${AI_API_URL}/vocabulary`, { language: languageName, count: 1 }).subscribe({
-      next: (response) => {
-        const words = Array.isArray(response.words) ? response.words : [];
-        if (words.length > 0) {
-          this.wordOfTheDay.set(words[0]);
-          localStorage.setItem(WOTD_KEY, JSON.stringify({ date: today, word: words[0], language: this.selectedLanguage() }));
-        }
-      },
-    });
-  }
+  private fetchDailyWords(today: string) {
+    this.isLoading.set(true);
+    const allLearned = this.getAllLearnedWords();
 
-  shareWordOfTheDay() {
-    const wotd = this.wordOfTheDay();
-    if (!wotd) return;
-    const langName = this.currentLanguage()?.name ?? 'Hindi';
-    const text = `Today I learned: ${wotd.word} (${wotd.transliteration}) = ${wotd.meaning} in ${langName}! #BhashaAI`;
-
-    if (navigator.share) {
-      navigator.share({ text }).catch(() => {});
-    } else {
-      navigator.clipboard.writeText(text).then(() => {
-        this.wotdShared.set(true);
-        setTimeout(() => this.wotdShared.set(false), 2000);
+    this.http
+      .post<{ success: boolean; words: DailyWord[]; date: string }>(`${AI_API_URL}/daily-words`, {
+        language: this.selectedLanguageName(),
+        date: today,
+        level: this.level(),
+        excludeWords: allLearned,
+      })
+      .subscribe({
+        next: (res) => {
+          if (res.success && res.words.length > 0) {
+            this.words.set(res.words);
+            this.saveTodayState(today, res.words, []);
+          }
+          this.isLoading.set(false);
+        },
+        error: () => {
+          this.isLoading.set(false);
+        },
       });
-    }
   }
 
-  // === FAVORITES ===
-  private loadFavorites() {
-    const saved = localStorage.getItem(FAVORITES_KEY);
+  private getAllLearnedWords(): string[] {
+    const words: string[] = [];
+    const saved = localStorage.getItem(LEARNED_KEY);
     if (saved) {
       try {
-        this.favorites.set(JSON.parse(saved));
+        const history: { date: string; words: DailyWord[] }[] = JSON.parse(saved);
+        for (const day of history) {
+          for (const w of day.words) {
+            words.push(w.english);
+          }
+        }
       } catch {}
     }
+    return words;
   }
 
-  private saveFavorites() {
-    localStorage.setItem(FAVORITES_KEY, JSON.stringify(this.favorites()));
+  private saveTodayState(date: string, words: DailyWord[], learned: number[]) {
+    localStorage.setItem(DAILY_WORDS_KEY, JSON.stringify({ date, words, learned, level: this.level(), language: this.selectedLanguage() }));
   }
 
-  toggleFavorite(word?: VocabularyWord) {
-    const target = word || this.currentCard();
-    if (!target) return;
-    const exists = this.favorites().some(f => f.word === target.word && f.meaning === target.meaning);
-    if (exists) {
-      this.favorites.update(favs => favs.filter(f => !(f.word === target.word && f.meaning === target.meaning)));
-    } else {
-      this.favorites.update(favs => [...favs, target]);
-    }
-    this.saveFavorites();
-  }
-
-  isWordFavorited(word: VocabularyWord): boolean {
-    return this.favorites().some(f => f.word === word.word && f.meaning === word.meaning);
-  }
-
-  removeFavorite(word: VocabularyWord) {
-    this.favorites.update(favs => favs.filter(f => !(f.word === word.word && f.meaning === word.meaning)));
-    this.saveFavorites();
-  }
-
-  // === CATEGORIES ===
-  onCategoryChange(categoryId: string) {
-    this.selectedCategory.set(categoryId);
-    this.loadVocabulary();
-  }
-
-  // === CARD NAVIGATION ===
+  // === CARD ACTIONS ===
   flipCard() {
     this.isFlipped.update(v => !v);
   }
 
-  nextCard() {
-    if (this.currentIndex() < this.words().length - 1) {
-      this.isFlipped.set(false);
-      setTimeout(() => this.currentIndex.update(i => i + 1), 150);
-    }
-  }
-
-  prevCard() {
-    if (this.currentIndex() > 0) {
-      this.isFlipped.set(false);
-      setTimeout(() => this.currentIndex.update(i => i - 1), 150);
-    }
-  }
-
-  markMastered() {
+  markLearned() {
     const index = this.currentIndex();
-    const word = this.words()[index];
-    if (!this.masteredIndices().includes(index)) {
-      this.masteredIndices.update(indices => [...indices, index]);
-      this.incrementDailyProgress();
-      // Remove from review if it was there
-      if (word) {
-        this.reviewWords.update(rw => rw.filter(r => !(r.word === word.word && r.meaning === word.meaning)));
-        this.saveReviewWords();
-      }
-    }
-    this.nextCard();
-  }
+    const newLearned = new Set(this.learnedIndices());
+    newLearned.add(index);
+    this.learnedIndices.set(newLearned);
 
-  skipCard() {
-    const index = this.currentIndex();
-    const word = this.words()[index];
-    if (word && !this.skippedIndices().includes(index)) {
-      this.skippedIndices.update(s => [...s, index]);
-      // Add to review words
-      const alreadyInReview = this.reviewWords().some(r => r.word === word.word && r.meaning === word.meaning);
-      if (!alreadyInReview) {
-        this.reviewWords.update(rw => [...rw, word]);
-        this.saveReviewWords();
-      }
-    }
-    this.nextCard();
-  }
-
-  // === LANGUAGE ===
-  onLanguageChange(event: Event) {
-    const select = event.target as HTMLSelectElement;
-    this.selectedLanguage.set(select.value);
-    this.loadVocabulary();
-  }
-
-  // === VOCABULARY LOADING ===
-  loadVocabulary() {
-    this.currentIndex.set(0);
-    this.isFlipped.set(false);
-    this.masteredIndices.set([]);
-    this.skippedIndices.set([]);
-    this.error.set('');
-    this.isLoading.set(true);
-    this.closeWordDetails();
-    this.closeQuiz();
-
-    const languageName = this.currentLanguage()?.name ?? 'Hindi';
-    const category = this.selectedCategory();
-
-    this.http.post<VocabularyResponse>(`${AI_API_URL}/vocabulary`, {
-      language: languageName,
-      count: 20,
-      category,
-    }).subscribe({
-      next: (response) => {
-        const words = Array.isArray(response.words) ? response.words : [];
-        this.words.set(words);
-        this.isLoading.set(false);
-        if (!words.length) {
-          this.error.set('No vocabulary cards were generated. Try again.');
-        }
-      },
-      error: () => {
-        this.isLoading.set(false);
-        this.error.set('Vocabulary service is unavailable right now. Try again shortly.');
-      },
-    });
-  }
-
-  loadMoreWords() {
-    if (this.isLoadingMore()) return;
-    this.isLoadingMore.set(true);
-
-    const languageName = this.currentLanguage()?.name ?? 'Hindi';
-    const category = this.selectedCategory();
-    const existingMeanings = this.words().map(w => w.meaning);
-
-    this.http.post<VocabularyResponse>(`${AI_API_URL}/vocabulary`, {
-      language: languageName,
-      count: 10,
-      category,
-      exclude: existingMeanings,
-    }).subscribe({
-      next: (response) => {
-        const newWords = Array.isArray(response.words) ? response.words : [];
-        if (newWords.length) {
-          this.words.update(existing => [...existing, ...newWords]);
-        }
-        this.isLoadingMore.set(false);
-      },
-      error: () => {
-        this.isLoadingMore.set(false);
-      },
-    });
-  }
-
-  // === WORD DETAILS ===
-  openWordDetails(word?: VocabularyWord) {
-    const target = word || this.currentCard();
-    if (!target) return;
-    this.selectedDetailWord.set(target);
-    this.showWordDetails.set(true);
-    this.isLoadingDetails.set(true);
-    this.wordDetails.set(null);
-
-    const languageName = this.currentLanguage()?.name ?? 'Hindi';
-
-    this.http.post<{ success: boolean; details?: WordDetails }>(`${AI_API_URL}/word-details`, {
-      word: target.word,
-      language: languageName,
-    }).subscribe({
-      next: (res) => {
-        this.isLoadingDetails.set(false);
-        if (res.success && res.details) {
-          this.wordDetails.set(res.details);
-        }
-      },
-      error: () => {
-        this.isLoadingDetails.set(false);
-      },
-    });
-  }
-
-  closeWordDetails() {
-    this.showWordDetails.set(false);
-    this.wordDetails.set(null);
-    this.selectedDetailWord.set(null);
-  }
-
-  // === QUICK QUIZ ===
-  startQuiz(word?: VocabularyWord) {
-    const target = word || this.currentCard();
-    if (!target) return;
-
-    const allWords = this.words();
-    const otherWords = allWords.filter(w => w.meaning !== target.meaning);
-
-    const questions: QuizQuestion[] = [];
-
-    // Q1: What does this word mean?
-    const wrongMeanings = this.shuffle(otherWords).slice(0, 3).map(w => w.meaning);
-    const q1Options = this.shuffle([target.meaning, ...wrongMeanings]);
-    questions.push({
-      question: `What does "${target.word}" (${target.transliteration}) mean?`,
-      options: q1Options,
-      correctIndex: q1Options.indexOf(target.meaning),
-    });
-
-    // Q2: Which word means...?
-    const wrongWords = this.shuffle(otherWords).slice(0, 3).map(w => `${w.word} (${w.transliteration})`);
-    const correctLabel = `${target.word} (${target.transliteration})`;
-    const q2Options = this.shuffle([correctLabel, ...wrongWords]);
-    questions.push({
-      question: `Which word means "${target.meaning}"?`,
-      options: q2Options,
-      correctIndex: q2Options.indexOf(correctLabel),
-    });
-
-    // Q3: Complete the sentence
-    const exampleWithBlank = target.example.replace(target.word, '____');
-    if (exampleWithBlank !== target.example) {
-      const wrongFills = this.shuffle(otherWords).slice(0, 3).map(w => w.word);
-      const q3Options = this.shuffle([target.word, ...wrongFills]);
-      questions.push({
-        question: `Fill in the blank: "${exampleWithBlank}"`,
-        options: q3Options,
-        correctIndex: q3Options.indexOf(target.word),
-      });
-    } else {
-      const wrongTranslit = this.shuffle(otherWords).slice(0, 3).map(w => w.transliteration);
-      const q3Options = this.shuffle([target.transliteration, ...wrongTranslit]);
-      questions.push({
-        question: `What is the transliteration of "${target.word}"?`,
-        options: q3Options,
-        correctIndex: q3Options.indexOf(target.transliteration),
-      });
-    }
-
-    this.quizQuestions.set(questions);
-    this.quizIndex.set(0);
-    this.quizAnswered.set(null);
-    this.quizScore.set(0);
-    this.quizComplete.set(false);
-    this.showQuiz.set(true);
-  }
-
-  answerQuiz(optionIndex: number) {
-    if (this.quizAnswered() !== null) return;
-    this.quizAnswered.set(optionIndex);
-    const current = this.quizQuestions()[this.quizIndex()];
-    if (current && optionIndex === current.correctIndex) {
-      this.quizScore.update(s => s + 1);
-    }
-  }
-
-  nextQuizQuestion() {
-    if (this.quizIndex() < this.quizQuestions().length - 1) {
-      this.quizIndex.update(i => i + 1);
-      this.quizAnswered.set(null);
-    } else {
-      this.quizComplete.set(true);
-    }
-  }
-
-  closeQuiz() {
-    this.showQuiz.set(false);
-    this.quizQuestions.set([]);
-    this.quizComplete.set(false);
-  }
-
-  private shuffle<T>(arr: T[]): T[] {
-    const a = [...arr];
-    for (let i = a.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [a[i], a[j]] = [a[j], a[i]];
-    }
-    return a;
-  }
-
-  // === DAILY GOAL ===
-  private loadDailyGoal() {
-    const saved = localStorage.getItem(GOAL_KEY);
-    if (saved) {
-      const val = parseInt(saved);
-      if (val === 5 || val === 10 || val === 20) {
-        this.dailyGoal.set(val);
-      }
-    }
-  }
-
-  setDailyGoal(goal: DailyGoal) {
-    this.dailyGoal.set(goal);
-    localStorage.setItem(GOAL_KEY, String(goal));
-  }
-
-  private loadDailyProgress() {
     const today = new Date().toISOString().split('T')[0];
-    const saved = localStorage.getItem(DAILY_PROGRESS_KEY);
-    if (saved) {
-      try {
-        const data = JSON.parse(saved);
-        if (data.date === today) {
-          this.dailyProgress.set(data.count || 0);
-          return;
-        }
-      } catch {}
-    }
-    this.dailyProgress.set(0);
-  }
+    this.saveTodayState(today, this.words(), Array.from(newLearned));
 
-  private saveDailyProgress() {
-    const today = new Date().toISOString().split('T')[0];
-    localStorage.setItem(DAILY_PROGRESS_KEY, JSON.stringify({ date: today, count: this.dailyProgress() }));
-  }
-
-  private incrementDailyProgress() {
-    this.dailyProgress.update(p => p + 1);
-    this.saveDailyProgress();
-
-    if (this.dailyProgress() === this.dailyGoal()) {
-      this.showGoalCelebration.set(true);
+    if (newLearned.size >= this.words().length) {
+      this.todayComplete.set(true);
+      this.saveTodayToHistory(today);
       this.updateStreak();
-      setTimeout(() => this.showGoalCelebration.set(false), 3000);
+    } else {
+      this.goToNextUnlearned();
     }
   }
 
-  dismissCelebration() {
-    this.showGoalCelebration.set(false);
+  markReview() {
+    const index = this.currentIndex();
+    const newReview = new Set(this.reviewIndices());
+    newReview.add(index);
+    this.reviewIndices.set(newReview);
+    this.goToNextUnlearned();
+  }
+
+  private goToNextUnlearned() {
+    this.isFlipped.set(false);
+    const words = this.words();
+    const learned = this.learnedIndices();
+    let next = this.currentIndex() + 1;
+
+    for (let i = 0; i < words.length; i++) {
+      const idx = (next + i) % words.length;
+      if (!learned.has(idx)) {
+        setTimeout(() => this.currentIndex.set(idx), 200);
+        return;
+      }
+    }
+  }
+
+  goToCard(index: number) {
+    this.isFlipped.set(false);
+    setTimeout(() => this.currentIndex.set(index), 150);
+  }
+
+  // === HISTORY ===
+  private saveTodayToHistory(today: string) {
+    const saved = localStorage.getItem(LEARNED_KEY);
+    let history: { date: string; words: DailyWord[]; level?: string }[] = [];
+    if (saved) {
+      try { history = JSON.parse(saved); } catch {}
+    }
+
+    if (history.some(h => h.date === today)) return;
+
+    history.unshift({ date: today, words: this.words(), level: this.level() });
+    history = history.slice(0, 30);
+    localStorage.setItem(LEARNED_KEY, JSON.stringify(history));
+  }
+
+  private loadHistory() {
+    const saved = localStorage.getItem(LEARNED_KEY);
+    if (!saved) { this.dailyHistory.set([]); return; }
+
+    try {
+      const history: { date: string; words: DailyWord[]; level?: string }[] = JSON.parse(saved);
+      const today = new Date().toISOString().split('T')[0];
+
+      this.dailyHistory.set(
+        history
+          .filter(h => h.date !== today)
+          .map(h => ({
+            date: h.date,
+            label: this.getDateLabel(h.date),
+            words: h.words,
+            level: h.level || 'school',
+          }))
+      );
+    } catch {
+      this.dailyHistory.set([]);
+    }
+  }
+
+  private getDateLabel(dateStr: string): string {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffDays = Math.floor((now.getTime() - date.getTime()) / 86400000);
+
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays === 2) return '2 days ago';
+    if (diffDays <= 7) return `${diffDays} days ago`;
+    if (diffDays <= 14) return 'Last week';
+
+    return date.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' });
+  }
+
+  reviewDay(day: DayHistory) {
+    this.reviewingDay.set(day);
+  }
+
+  closeReview() {
+    this.reviewingDay.set(null);
   }
 
   // === STREAK ===
@@ -573,8 +336,6 @@ export class Learn {
         const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
         if (data.lastDate === today || data.lastDate === yesterday) {
           this.streak.set(data.count || 0);
-        } else {
-          this.streak.set(0);
         }
       } catch {}
     }
@@ -599,70 +360,16 @@ export class Learn {
     localStorage.setItem(STREAK_KEY, JSON.stringify({ lastDate: today, count }));
   }
 
-  // === REVIEW MODE ===
-  private loadReviewWords() {
-    const saved = localStorage.getItem(REVIEW_KEY);
-    if (saved) {
-      try {
-        this.reviewWords.set(JSON.parse(saved));
-      } catch {}
-    }
+  // === HELPERS ===
+  getCategoryClass(category: string): string {
+    return CATEGORY_COLORS[category] || 'bg-gray-100 text-gray-700 border-gray-200';
   }
 
-  private saveReviewWords() {
-    localStorage.setItem(REVIEW_KEY, JSON.stringify(this.reviewWords()));
+  isCardLearned(index: number): boolean {
+    return this.learnedIndices().has(index);
   }
 
-  startReviewMode() {
-    const review = this.reviewWords();
-    if (!review.length) return;
-    this.words.set([...review]);
-    this.currentIndex.set(0);
-    this.isFlipped.set(false);
-    this.masteredIndices.set([]);
-    this.skippedIndices.set([]);
-    this.activeTab.set('cards');
-  }
-
-  removeFromReview(word: VocabularyWord) {
-    this.reviewWords.update(rw => rw.filter(r => !(r.word === word.word && r.meaning === word.meaning)));
-    this.saveReviewWords();
-  }
-
-  // === EXPORT ===
-  exportMasteredWords() {
-    const mastered = this.filteredMastered();
-    if (!mastered.length) return;
-
-    const langName = this.currentLanguage()?.name ?? 'Language';
-    let content = `BhashaAI - Mastered ${langName} Words\n${'='.repeat(40)}\n\n`;
-    mastered.forEach((w, i) => {
-      content += `${i + 1}. ${w.word} (${w.transliteration})\n   Meaning: ${w.meaning}\n   Example: ${w.example}\n\n`;
-    });
-    content += `\nTotal: ${mastered.length} words\nExported: ${new Date().toLocaleDateString()}\n`;
-
-    const blob = new Blob([content], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `bhashaai-${langName.toLowerCase()}-words.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-
-  // === QUIZ HELPERS ===
-  getQuizOptionClass(index: number): string {
-    const answered = this.quizAnswered();
-    const current = this.quizQuestions()[this.quizIndex()];
-    if (answered === null || !current) {
-      return 'border-white/10 bg-white/5 text-slate-700 hover:border-green-400/50 hover:bg-green-50';
-    }
-    if (index === current.correctIndex) {
-      return 'border-green-500 bg-green-50 text-green-800';
-    }
-    if (index === answered && index !== current.correctIndex) {
-      return 'border-rose-400 bg-rose-50 text-rose-800';
-    }
-    return 'border-slate-200 bg-white/50 text-slate-400';
+  formatDate(dateStr: string): string {
+    return new Date(dateStr).toLocaleDateString('en-IN', { weekday: 'short', month: 'short', day: 'numeric' });
   }
 }

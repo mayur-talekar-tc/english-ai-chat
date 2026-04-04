@@ -1,585 +1,272 @@
-<section class="learn-shell min-h-[calc(100vh-4rem)] py-10">
-  <div class="mx-auto max-w-5xl px-4 sm:px-6">
+<section class="learn-shell min-h-[calc(100vh-4rem)] py-6">
+  <div class="mx-auto max-w-xl px-4">
 
-    <!-- HEADER -->
-    <div class="mb-8 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-      <div>
-        <p class="mb-2 text-sm font-semibold uppercase tracking-[0.28em] text-green-700/80">Learn Vocabulary</p>
-        <h1 class="text-4xl font-black tracking-tight text-slate-950 sm:text-5xl">Master words, one card at a time</h1>
-        <p class="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
-          AI-generated flashcards with native script, transliteration, meaning, and examples. Track your progress and build streaks.
-        </p>
-      </div>
-      <div class="flex flex-col gap-3 sm:flex-row">
+    <!-- HEADER ROW: Title + Dropdowns -->
+    <div class="mb-5 flex items-center justify-between gap-3">
+      <h1 class="text-2xl font-black text-slate-900">Daily Words</h1>
+      <div class="flex items-center gap-2">
         <select
           [value]="selectedLanguage()"
           (change)="onLanguageChange($event)"
-          class="w-full rounded-2xl border border-green-200 bg-white px-4 py-3 text-sm font-semibold text-slate-800 shadow-sm outline-none transition focus:border-green-400 sm:w-52"
+          class="rounded-xl border border-green-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 shadow-sm outline-none focus:border-green-400"
         >
-          @for (language of languages; track language.code) {
-            <option [value]="language.code">{{ language.flag }} {{ language.name }}</option>
+          @for (lang of indianLanguages; track lang.code) {
+            <option [value]="lang.code">{{ lang.flag }} {{ lang.name }}</option>
           }
         </select>
         <select
-          [value]="selectedCategory()"
-          (change)="onCategoryChange($any($event.target).value)"
-          class="w-full rounded-2xl border border-green-200 bg-white px-4 py-3 text-sm font-semibold text-slate-800 shadow-sm outline-none transition focus:border-green-400 sm:w-44"
+          [value]="level()"
+          (change)="onLevelChange($event)"
+          class="rounded-xl border border-green-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 shadow-sm outline-none focus:border-green-400"
         >
-          @for (cat of categories; track cat.id) {
-            <option [value]="cat.id">{{ cat.label }}</option>
-          }
+          <option value="school">🎒 School</option>
+          <option value="adults">💼 Adults</option>
         </select>
       </div>
     </div>
 
-    <!-- WORD OF THE DAY -->
-    @if (wordOfTheDay(); as wotd) {
-      <div class="mb-8 relative overflow-hidden rounded-[2rem] border-2 border-yellow-400/60 bg-gradient-to-r from-yellow-50 via-amber-50 to-orange-50 p-6 shadow-lg shadow-yellow-100/40 animate-fade-in">
-        <div class="absolute top-0 right-0 w-32 h-32 bg-yellow-300/10 rounded-full -mr-10 -mt-10"></div>
-        <div class="flex items-center justify-between gap-4 flex-wrap">
-          <div>
-            <div class="flex items-center gap-2 mb-2">
-              <span class="inline-flex items-center gap-1 rounded-full bg-yellow-400/20 px-3 py-1 text-xs font-bold uppercase tracking-[0.22em] text-yellow-800">
-                <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
-                Word of the Day
-              </span>
-              <span class="text-xs text-slate-500">{{ currentLanguage()?.flag }} {{ currentLanguage()?.name }}</span>
-            </div>
-            <h2 class="text-3xl font-black text-slate-950 sm:text-4xl">{{ wotd.word }}</h2>
-            <p class="mt-1 text-base font-medium text-yellow-800/80">{{ wotd.transliteration }}</p>
-            <p class="mt-1 text-sm text-slate-600">{{ wotd.meaning }} &mdash; <span class="italic text-slate-500">"{{ wotd.example }}"</span></p>
-          </div>
-          <button
-            (click)="shareWordOfTheDay(); $event.stopPropagation()"
-            class="flex items-center gap-2 rounded-2xl border border-yellow-300 bg-white px-4 py-2.5 text-sm font-semibold text-yellow-800 shadow-sm transition hover:bg-yellow-50"
-          >
-            @if (wotdShared()) {
-              <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-              Copied!
-            } @else {
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
-              Share
-            }
-          </button>
-        </div>
-      </div>
-    }
-
-    <!-- DAILY GOAL + STREAK ROW -->
-    <div class="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      <!-- Progress Ring -->
-      <div class="rounded-3xl border border-green-200 bg-white/90 px-5 py-4 text-center shadow-sm">
-        <div class="relative mx-auto mb-2 h-16 w-16">
-          <svg class="h-16 w-16 -rotate-90" viewBox="0 0 36 36">
-            <path d="M18 2.0845a 15.9155 15.9155 0 0 1 0 31.831 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#e5e7eb" stroke-width="3"/>
-            <path d="M18 2.0845a 15.9155 15.9155 0 0 1 0 31.831 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#22c55e" stroke-width="3" [attr.stroke-dasharray]="goalProgress() + ', 100'" stroke-linecap="round" class="transition-all duration-700"/>
-          </svg>
-          <span class="absolute inset-0 flex items-center justify-center text-sm font-bold text-green-700">{{ dailyProgress() }}/{{ dailyGoal() }}</span>
-        </div>
-        <p class="text-[11px] uppercase tracking-[0.2em] text-slate-500">Daily Goal</p>
-        <div class="mt-2 flex justify-center gap-1">
-          @for (goal of goalOptions; track goal) {
-            <button
-              (click)="setDailyGoal(goal)"
-              class="rounded-lg px-2 py-0.5 text-[10px] font-bold transition"
-              [class]="dailyGoal() === goal ? 'bg-green-500 text-white' : 'bg-slate-100 text-slate-500 hover:bg-green-100'"
-            >{{ goal }}</button>
-          }
-        </div>
-      </div>
-
+    <!-- STATS ROW: Streak + Progress + Count -->
+    <div class="mb-5 flex items-center gap-3">
       <!-- Streak -->
-      <div class="rounded-3xl border border-green-200 bg-white/90 px-5 py-4 text-center shadow-sm">
-        <p class="text-3xl font-black text-orange-500">{{ streak() }}</p>
-        <p class="text-[11px] uppercase tracking-[0.2em] text-slate-500">Day Streak</p>
-        <p class="mt-2 text-xs text-slate-400">{{ streak() > 0 ? 'Keep it going!' : 'Complete your goal to start' }}</p>
+      <div class="flex items-center gap-1.5 rounded-xl bg-orange-50 border border-orange-200 px-3 py-2">
+        <span class="text-lg">🔥</span>
+        <div>
+          <p class="text-sm font-black text-orange-600 leading-none">{{ streak() }}</p>
+          <p class="text-[9px] text-orange-500/70 font-medium">streak</p>
+        </div>
       </div>
 
-      <!-- Mastered -->
-      <div class="rounded-3xl border border-green-200 bg-white/90 px-5 py-4 text-center shadow-sm">
-        <p class="text-3xl font-black text-green-600">{{ masteredCount() }}</p>
-        <p class="text-[11px] uppercase tracking-[0.2em] text-slate-500">Mastered</p>
-        <p class="mt-2 text-xs text-slate-400">of {{ words().length }} total</p>
+      <!-- Progress Bar (takes remaining space) -->
+      <div class="flex-1">
+        <div class="flex items-center justify-between mb-1">
+          <span class="text-[10px] font-bold text-green-700">{{ learnedCount() }}/{{ totalWords() }} words</span>
+          <span class="text-[10px] font-semibold text-slate-400">{{ levelLabel() }}</span>
+        </div>
+        <div class="h-2.5 w-full rounded-full bg-green-100 overflow-hidden">
+          <div
+            class="h-2.5 rounded-full bg-gradient-to-r from-green-400 to-emerald-500 transition-all duration-700 ease-out"
+            [style.width.%]="goalProgress()"
+          ></div>
+        </div>
       </div>
+    </div>
 
-      <!-- Review Due -->
-      <div class="rounded-3xl border border-green-200 bg-white/90 px-5 py-4 text-center shadow-sm">
-        <p class="text-3xl font-black" [class]="reviewDueCount() > 0 ? 'text-rose-500' : 'text-slate-400'">{{ reviewDueCount() }}</p>
-        <p class="text-[11px] uppercase tracking-[0.2em] text-slate-500">Review Due</p>
-        @if (reviewDueCount() > 0) {
-          <button (click)="startReviewMode()" class="mt-2 text-xs font-semibold text-rose-600 hover:text-rose-800 transition">Start Review</button>
+    <!-- TABS -->
+    <div class="mb-5 flex gap-1 rounded-xl bg-slate-100 p-0.5">
+      <button
+        (click)="setTab('today')"
+        class="flex-1 rounded-lg px-3 py-2 text-xs font-bold transition-all"
+        [class]="activeTab() === 'today' ? 'bg-white text-green-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'"
+      >
+        Today
+      </button>
+      <button
+        (click)="setTab('previous')"
+        class="flex-1 rounded-lg px-3 py-2 text-xs font-bold transition-all"
+        [class]="activeTab() === 'previous' ? 'bg-white text-green-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'"
+      >
+        Previous
+        @if (dailyHistory().length > 0) {
+          <span class="ml-1 rounded-full bg-green-100 px-1.5 py-0.5 text-[9px] text-green-700">{{ dailyHistory().length }}</span>
         }
-      </div>
+      </button>
     </div>
 
-    <!-- TAB NAV -->
-    <div class="mb-6 flex gap-1 rounded-2xl bg-slate-100 p-1">
-      @for (tab of [
-        { id: 'cards', label: 'Flashcards' },
-        { id: 'favorites', label: 'Favorites' },
-        { id: 'mastered', label: 'My Words' },
-        { id: 'review', label: 'Review' }
-      ]; track tab.id) {
-        <button
-          (click)="setTab($any(tab.id))"
-          class="flex-1 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all"
-          [class]="activeTab() === tab.id ? 'bg-white text-green-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'"
-        >
-          {{ tab.label }}
-          @if (tab.id === 'favorites' && favorites().length) {
-            <span class="ml-1 rounded-full bg-green-100 px-1.5 py-0.5 text-[10px] text-green-700">{{ favorites().length }}</span>
-          }
-          @if (tab.id === 'review' && reviewDueCount() > 0) {
-            <span class="ml-1 rounded-full bg-rose-100 px-1.5 py-0.5 text-[10px] text-rose-700">{{ reviewDueCount() }}</span>
-          }
-        </button>
-      }
-    </div>
+    <!-- ==================== TODAY TAB ==================== -->
+    @if (activeTab() === 'today') {
 
-    <!-- TAB: FLASHCARDS -->
-    @if (activeTab() === 'cards') {
-
-      <!-- Category Badge + Progress -->
-      @if (selectedCategory()) {
-        <div class="mb-4 flex items-center gap-2">
-          <span class="rounded-full bg-green-100 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-green-700">{{ selectedCategoryLabel() }}</span>
-        </div>
-      }
-
-      <div class="mb-6">
-        <div class="flex justify-between items-center mb-2">
-          <span class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Card {{ currentIndex() + 1 }} of {{ words().length }}</span>
-          <span class="text-xs font-semibold uppercase tracking-[0.2em] text-green-700">{{ progress() | number:'1.0-0' }}%</span>
-        </div>
-        <div class="h-3 w-full rounded-full bg-green-100">
-          <div class="h-3 rounded-full bg-gradient-to-r from-green-400 via-emerald-500 to-teal-500 transition-all duration-500 ease-out" [style.width.%]="progress()"></div>
-        </div>
-      </div>
-
+      <!-- Loading -->
       @if (isLoading()) {
-        <div class="rounded-[2.2rem] border border-green-200 bg-white/90 px-8 py-14 text-center shadow-lg">
-          <div class="mx-auto mb-4 h-12 w-12 rounded-full border-4 border-green-100 border-t-green-500 animate-spin"></div>
-          <p class="text-lg font-semibold text-slate-900">Generating vocabulary...</p>
-          <p class="mt-2 text-sm text-slate-500">Building 20 vocabulary cards for {{ currentLanguage()?.name || 'your language' }}{{ selectedCategory() ? ' (' + selectedCategoryLabel() + ')' : '' }}.</p>
+        <div class="rounded-2xl border border-green-200 bg-white px-6 py-14 text-center shadow-md animate-fade-in">
+          <div class="mx-auto mb-3 h-10 w-10 rounded-full border-4 border-green-100 border-t-green-500 animate-spin"></div>
+          <p class="text-base font-bold text-slate-900">Generating words...</p>
+          <p class="mt-1 text-xs text-slate-500">{{ selectedLanguageName() }} · {{ levelLabel() }} level</p>
         </div>
-      } @else if (error()) {
-        <div class="rounded-[2.2rem] border border-rose-200 bg-rose-50 px-8 py-10 text-center shadow-sm">
-          <p class="text-lg font-semibold text-rose-700">{{ error() }}</p>
-          <button
-            (click)="loadVocabulary()"
-            class="mt-4 rounded-full bg-green-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-green-700"
-          >Try Again</button>
+      }
+
+      <!-- TODAY COMPLETE -->
+      @else if (todayComplete()) {
+        <div class="rounded-2xl bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 border-2 border-green-300 px-6 py-10 text-center shadow-md animate-bounce-in">
+          <p class="text-5xl mb-3">🎉</p>
+          <h2 class="text-xl font-black text-green-700">Shabash!</h2>
+          <p class="mt-1 text-sm font-semibold text-slate-700">Aaj ke {{ totalWords() }} words complete!</p>
+          @if (streak() > 0) {
+            <p class="mt-1.5 text-sm text-orange-500 font-bold">{{ streak() }} din ki streak! 🔥</p>
+          }
+          <p class="mt-3 text-xs text-slate-500">Kal naye words aayenge!</p>
+
+          <div class="mt-5 grid grid-cols-2 gap-1.5 max-h-64 overflow-y-auto">
+            @for (word of words(); track $index) {
+              <div class="rounded-lg bg-white border border-green-200 p-2 text-left flex items-center gap-2">
+                <span class="text-base">{{ word.emoji }}</span>
+                <div class="min-w-0">
+                  <p class="text-xs font-bold text-slate-900 truncate">{{ word.english }}</p>
+                  <p class="text-[10px] text-green-700 truncate">{{ word.native }}</p>
+                </div>
+              </div>
+            }
+          </div>
         </div>
-      } @else if (currentCard(); as card) {
-        <!-- FLASHCARD -->
+      }
+
+      <!-- FLASHCARD -->
+      @else if (currentCard(); as card) {
+        <!-- Word dots -->
+        <div class="mb-4 flex gap-1 flex-wrap justify-center">
+          @for (word of words(); track $index) {
+            <button
+              (click)="goToCard($index)"
+              class="w-5.5 h-5.5 w-[22px] h-[22px] rounded-full text-[8px] font-bold flex items-center justify-center transition-all"
+              [class]="isCardLearned($index)
+                ? 'bg-green-500 text-white shadow-sm'
+                : currentIndex() === $index
+                  ? 'bg-white text-green-700 ring-2 ring-green-400 shadow-sm'
+                  : 'bg-white/60 text-slate-400 hover:bg-white'"
+            >
+              @if (isCardLearned($index)) {
+                ✓
+              } @else {
+                {{ $index + 1 }}
+              }
+            </button>
+          }
+        </div>
+
+        <!-- Card -->
         <div
-          class="mb-6 cursor-pointer" style="perspective: 1000px"
+          class="mb-5 cursor-pointer" style="perspective: 1000px"
           (click)="flipCard()"
           [class.flashcard-flipped]="isFlipped()"
         >
           <div class="flashcard-inner relative w-full h-72 sm:h-80">
             <!-- FRONT -->
-            <div class="flashcard-front absolute inset-0 flex flex-col justify-between rounded-[2.2rem] border border-green-200 bg-white p-7 shadow-xl shadow-green-100/40">
-              <div class="flex items-start justify-between gap-3">
-                <div class="flex items-center gap-2">
-                  <span class="rounded-full bg-green-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-green-700">Tap to flip</span>
-                  @if (selectedCategory()) {
-                    <span class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">{{ selectedCategoryLabel() }}</span>
-                  }
-                </div>
-                <div class="flex items-center gap-2">
-                  <button
-                    (click)="toggleFavorite(); $event.stopPropagation()"
-                    class="rounded-full p-1.5 transition hover:bg-rose-50"
-                  >
-                    @if (isFavorited()) {
-                      <svg class="w-5 h-5 text-rose-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd"/></svg>
-                    } @else {
-                      <svg class="w-5 h-5 text-slate-300 hover:text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
-                    }
-                  </button>
-                  <span class="rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                    {{ currentLanguage()?.flag }} {{ currentLanguage()?.name }}
-                  </span>
-                </div>
+            <div class="flashcard-front absolute inset-0 flex flex-col justify-between rounded-2xl border-2 border-green-200 bg-white p-5 shadow-lg">
+              <div class="flex items-center justify-between">
+                <span class="rounded-lg border px-2 py-0.5 text-[10px] font-bold" [class]="getCategoryClass(card.category)">
+                  {{ card.emoji }} {{ card.category }}
+                </span>
+                <span class="text-[10px] font-medium text-slate-400 flex items-center gap-1">
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"/></svg>
+                  Tap to flip
+                </span>
               </div>
 
-              <div class="text-center">
-                <h2 class="text-4xl font-black tracking-tight text-slate-950 sm:text-6xl">{{ card.word }}</h2>
-                <p class="mt-3 text-lg font-medium text-green-700">{{ card.transliteration }}</p>
-                @if (isIndianSelection()) {
-                  <p class="mt-1 text-sm text-slate-500">Native script + transliteration</p>
-                } @else {
-                  <p class="mt-1 text-sm text-slate-500">Pronunciation guide</p>
-                }
+              <div class="text-center py-2">
+                <p class="text-4xl mb-2">{{ card.emoji }}</p>
+                <h2 class="text-3xl sm:text-4xl font-black text-slate-900 leading-tight">{{ card.english }}</h2>
+                <p class="mt-2 text-sm text-slate-500">{{ card.meaning }}</p>
               </div>
 
-              <p class="rounded-2xl bg-slate-50 px-4 py-2.5 text-sm italic text-slate-500">"{{ card.example }}"</p>
+              <div class="rounded-xl bg-slate-50 border border-slate-100 px-3 py-2.5 text-center">
+                <p class="text-xs text-slate-500 italic">"{{ card.example }}"</p>
+              </div>
             </div>
 
             <!-- BACK -->
-            <div class="flashcard-back absolute inset-0 flex flex-col justify-between rounded-[2.2rem] bg-slate-950 p-7 text-white shadow-xl">
-              <div class="flex items-start justify-between gap-3">
-                <span class="rounded-full bg-green-500/20 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-green-300">Meaning</span>
-                <div class="flex items-center gap-2">
-                  <button
-                    (click)="openWordDetails(); $event.stopPropagation()"
-                    class="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-slate-300 transition hover:bg-white/20"
-                  >Details</button>
-                  <button
-                    (click)="startQuiz(); $event.stopPropagation()"
-                    class="rounded-full bg-green-500/20 px-3 py-1 text-xs font-semibold text-green-300 transition hover:bg-green-500/30"
-                  >Test Me</button>
+            <div class="flashcard-back absolute inset-0 flex flex-col justify-between rounded-2xl bg-gradient-to-br from-green-600 via-emerald-600 to-teal-700 p-5 shadow-lg text-white">
+              <div class="flex items-center justify-between">
+                <span class="rounded-lg bg-white/15 px-2 py-0.5 text-[10px] font-bold text-white/90">
+                  {{ card.emoji }} {{ card.category }}
+                </span>
+                <span class="rounded-lg bg-white/15 px-2 py-0.5 text-[10px] font-bold text-white/70">
+                  {{ selectedLanguageName() }}
+                </span>
+              </div>
+
+              <div class="text-center py-2">
+                <p class="text-4xl mb-2">{{ card.emoji }}</p>
+                <h2 class="text-3xl sm:text-4xl font-black text-white leading-tight">{{ card.native }}</h2>
+                <p class="mt-1.5 text-base font-medium text-green-100">({{ card.transliteration }})</p>
+                <div class="mt-3 inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1">
+                  <span class="text-xs font-semibold text-green-100">{{ card.english }}</span>
+                  <span class="text-green-300">→</span>
+                  <span class="text-xs font-semibold text-white">{{ card.native }}</span>
                 </div>
               </div>
 
-              <div class="text-center">
-                <p class="text-sm uppercase tracking-[0.24em] text-slate-400">English meaning</p>
-                <h2 class="mt-3 text-4xl font-black tracking-tight text-white sm:text-5xl">{{ card.meaning }}</h2>
-                <p class="mt-3 text-base text-slate-300">{{ card.word }} ({{ card.transliteration }})</p>
-              </div>
-
-              <div class="rounded-3xl border border-white/10 bg-white/5 px-5 py-3 text-left">
-                <p class="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Example</p>
-                <p class="mt-1.5 text-sm leading-6 text-slate-200">{{ card.example }}</p>
+              <div class="rounded-xl bg-white/10 px-3 py-2.5 text-center">
+                <p class="text-xs text-green-100 italic">"{{ card.example }}"</p>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- CARD BUTTONS -->
-        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <!-- Action Buttons -->
+        <div class="flex gap-3">
           <button
-            (click)="prevCard()"
-            [disabled]="currentIndex() === 0"
-            class="flex items-center justify-center gap-2 rounded-2xl px-5 py-3 text-sm font-semibold transition-all"
-            [class]="currentIndex() === 0 ? 'cursor-not-allowed bg-slate-200 text-slate-400' : 'border border-slate-200 bg-white text-slate-700 shadow-sm hover:border-green-400 hover:text-green-700'"
+            (click)="markReview()"
+            class="flex-1 flex items-center justify-center gap-1.5 rounded-xl border-2 border-orange-200 bg-orange-50 px-3 py-3.5 text-sm font-bold text-orange-600 transition hover:bg-orange-100 active:scale-[0.97]"
           >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
-            Previous
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            Dobara dikhao
           </button>
-
-          <div class="flex items-center gap-2">
-            <button
-              (click)="skipCard()"
-              class="flex items-center justify-center gap-2 rounded-2xl border border-orange-200 bg-white px-4 py-3 text-sm font-semibold text-orange-600 shadow-sm transition-all hover:bg-orange-50"
-            >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7"/></svg>
-              Skip
-            </button>
-            <button
-              (click)="markMastered()"
-              class="flex items-center justify-center gap-2 rounded-2xl border border-green-200 bg-white px-4 py-3 text-sm font-semibold text-green-700 shadow-sm transition-all hover:bg-green-50"
-            >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-              Got it!
-            </button>
-          </div>
-
           <button
-            (click)="nextCard()"
-            [disabled]="currentIndex() === words().length - 1"
-            class="flex items-center justify-center gap-2 rounded-2xl px-5 py-3 text-sm font-semibold transition-all"
-            [class]="currentIndex() === words().length - 1 ? 'cursor-not-allowed bg-slate-200 text-slate-400' : 'bg-green-600 text-white shadow-sm hover:bg-green-700'"
+            (click)="markLearned()"
+            class="flex-1 flex items-center justify-center gap-1.5 rounded-xl border-2 border-green-300 bg-green-500 px-3 py-3.5 text-sm font-bold text-white shadow-sm transition hover:bg-green-600 active:scale-[0.97]"
           >
-            Next
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-          </button>
-        </div>
-
-        <!-- GENERATE MORE -->
-        <div class="mt-6 flex justify-center">
-          <button
-            (click)="loadMoreWords()"
-            [disabled]="isLoadingMore()"
-            class="flex items-center justify-center gap-2 rounded-2xl border border-green-300 bg-white px-6 py-3 text-sm font-semibold text-green-700 shadow-sm transition-all hover:bg-green-50 hover:border-green-400 disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            @if (isLoadingMore()) {
-              <div class="h-4 w-4 rounded-full border-2 border-green-200 border-t-green-600 animate-spin"></div>
-              Generating more words...
-            } @else {
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-              Generate 10 More Words
-            }
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+            Yaad hai
           </button>
         </div>
       }
     }
 
-    <!-- TAB: FAVORITES -->
-    @if (activeTab() === 'favorites') {
+    <!-- ==================== PREVIOUS WORDS TAB ==================== -->
+    @if (activeTab() === 'previous') {
       <div class="animate-fade-in">
-        @if (favorites().length === 0) {
-          <div class="rounded-[2rem] border border-green-200 bg-white/90 px-8 py-14 text-center shadow-sm">
-            <svg class="mx-auto mb-4 h-12 w-12 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
-            <p class="text-lg font-semibold text-slate-700">No favorites yet</p>
-            <p class="mt-2 text-sm text-slate-500">Tap the heart icon on any flashcard to save it here.</p>
-          </div>
-        } @else {
-          <div class="mb-4">
-            <input
-              type="text"
-              placeholder="Search favorites..."
-              [value]="favoritesSearch()"
-              (input)="favoritesSearch.set($any($event.target).value)"
-              class="w-full rounded-2xl border border-green-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-green-400"
-            />
-          </div>
-          <div class="grid gap-3 sm:grid-cols-2">
-            @for (word of filteredFavorites(); track word.word + word.meaning) {
-              <div class="group relative rounded-2xl border border-green-200 bg-white p-5 shadow-sm transition hover:shadow-md hover:border-green-300">
-                <div class="flex items-start justify-between gap-3">
-                  <div class="min-w-0 flex-1">
-                    <h3 class="text-xl font-bold text-slate-900">{{ word.word }}</h3>
-                    <p class="text-sm font-medium text-green-700">{{ word.transliteration }}</p>
-                    <p class="mt-1 text-sm text-slate-600">{{ word.meaning }}</p>
-                    <p class="mt-2 text-xs italic text-slate-400">"{{ word.example }}"</p>
-                  </div>
-                  <div class="flex flex-col gap-1">
-                    <button (click)="openWordDetails(word)" class="rounded-lg p-1.5 text-slate-400 transition hover:bg-green-50 hover:text-green-600">
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                    </button>
-                    <button (click)="removeFavorite(word)" class="rounded-lg p-1.5 text-slate-400 transition hover:bg-rose-50 hover:text-rose-500">
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            }
-          </div>
-        }
-      </div>
-    }
 
-    <!-- TAB: MY WORDS (MASTERED) -->
-    @if (activeTab() === 'mastered') {
-      <div class="animate-fade-in">
-        @if (masteredCount() === 0) {
-          <div class="rounded-[2rem] border border-green-200 bg-white/90 px-8 py-14 text-center shadow-sm">
-            <svg class="mx-auto mb-4 h-12 w-12 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
-            <p class="text-lg font-semibold text-slate-700">No mastered words yet</p>
-            <p class="mt-2 text-sm text-slate-500">Mark words as "Got it!" to add them here.</p>
-          </div>
-        } @else {
-          <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <input
-              type="text"
-              placeholder="Search mastered words..."
-              [value]="masteredSearch()"
-              (input)="masteredSearch.set($any($event.target).value)"
-              class="w-full rounded-2xl border border-green-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-green-400 sm:max-w-xs"
-            />
-            <div class="flex items-center gap-3">
-              <span class="text-sm font-semibold text-green-700">{{ masteredCount() }} words learned</span>
-              <button
-                (click)="exportMasteredWords()"
-                class="flex items-center gap-2 rounded-2xl border border-green-200 bg-white px-4 py-2.5 text-sm font-semibold text-green-700 shadow-sm transition hover:bg-green-50"
-              >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                Export
-              </button>
-            </div>
-          </div>
-          <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            @for (word of filteredMastered(); track word.word + word.meaning) {
-              <div class="rounded-2xl border border-green-200 bg-white p-4 shadow-sm transition hover:shadow-md hover:border-green-300">
-                <div class="flex items-center gap-2 mb-2">
-                  <svg class="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
-                  <span class="text-xs font-semibold text-green-600">Mastered</span>
-                </div>
-                <h3 class="text-lg font-bold text-slate-900">{{ word.word }}</h3>
-                <p class="text-sm text-green-700">{{ word.transliteration }}</p>
-                <p class="mt-1 text-sm text-slate-600">{{ word.meaning }}</p>
-              </div>
-            }
-          </div>
-        }
-      </div>
-    }
-
-    <!-- TAB: REVIEW -->
-    @if (activeTab() === 'review') {
-      <div class="animate-fade-in">
-        @if (reviewWords().length === 0) {
-          <div class="rounded-[2rem] border border-green-200 bg-white/90 px-8 py-14 text-center shadow-sm">
-            <svg class="mx-auto mb-4 h-12 w-12 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-            <p class="text-lg font-semibold text-slate-700">All caught up!</p>
-            <p class="mt-2 text-sm text-slate-500">No words to review. Skipped words will appear here for practice.</p>
-          </div>
-        } @else {
-          <div class="mb-4 flex items-center justify-between">
-            <p class="text-sm font-semibold text-slate-700">{{ reviewWords().length }} words need review</p>
-            <button
-              (click)="startReviewMode()"
-              class="flex items-center gap-2 rounded-2xl bg-green-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-green-700"
-            >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-              Start Review
+        @if (reviewingDay(); as day) {
+          <div class="mb-3">
+            <button (click)="closeReview()" class="flex items-center gap-1 text-xs font-bold text-green-700 hover:text-green-800">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+              Back
             </button>
           </div>
-          <div class="grid gap-3 sm:grid-cols-2">
-            @for (word of reviewWords(); track word.word + word.meaning) {
-              <div class="rounded-2xl border border-orange-200 bg-white p-5 shadow-sm">
-                <div class="flex items-start justify-between gap-3">
-                  <div>
-                    <h3 class="text-lg font-bold text-slate-900">{{ word.word }}</h3>
-                    <p class="text-sm text-orange-600">{{ word.transliteration }}</p>
-                    <p class="mt-1 text-sm text-slate-600">{{ word.meaning }}</p>
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-sm font-bold text-slate-900">{{ day.label }} · {{ formatDate(day.date) }}</h3>
+            <span class="rounded-lg bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">{{ day.level === 'adults' ? '💼' : '🎒' }} {{ day.words.length }} words</span>
+          </div>
+          <div class="grid gap-2">
+            @for (word of day.words; track $index) {
+              <div class="rounded-xl border border-green-100 bg-white p-3 shadow-sm flex items-center gap-3">
+                <span class="text-2xl">{{ word.emoji }}</span>
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-1.5">
+                    <h4 class="text-sm font-bold text-slate-900">{{ word.english }}</h4>
+                    <span class="rounded border px-1.5 py-0.5 text-[8px] font-bold" [class]="getCategoryClass(word.category)">{{ word.category }}</span>
                   </div>
-                  <button (click)="removeFromReview(word)" class="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600" title="Remove from review">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                  </button>
+                  <p class="text-xs font-semibold text-green-700">{{ word.native }} ({{ word.transliteration }})</p>
                 </div>
               </div>
             }
           </div>
         }
-      </div>
-    }
 
-    <!-- WORD DETAILS MODAL -->
-    @if (showWordDetails()) {
-      <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 animate-fade-in" (click)="closeWordDetails()">
-        <div class="relative w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-[2rem] bg-white p-7 shadow-2xl" (click)="$event.stopPropagation()">
-          <button (click)="closeWordDetails()" class="absolute top-4 right-4 rounded-full p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-          </button>
-
-          @if (selectedDetailWord(); as dw) {
-            <div class="mb-5">
-              <h2 class="text-3xl font-black text-slate-950">{{ dw.word }}</h2>
-              <p class="text-lg font-medium text-green-700">{{ dw.transliteration }}</p>
-              <p class="mt-1 text-base text-slate-600">{{ dw.meaning }}</p>
-            </div>
-          }
-
-          @if (isLoadingDetails()) {
-            <div class="py-8 text-center">
-              <div class="mx-auto mb-3 h-8 w-8 rounded-full border-3 border-green-100 border-t-green-500 animate-spin"></div>
-              <p class="text-sm text-slate-500">Loading word details...</p>
-            </div>
-          } @else if (wordDetails(); as details) {
-            <div class="space-y-5">
-              <!-- Difficulty -->
-              <div>
-                <span class="rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wider"
-                  [class]="details.difficulty === 'beginner' ? 'bg-green-100 text-green-700' : details.difficulty === 'intermediate' ? 'bg-yellow-100 text-yellow-700' : 'bg-rose-100 text-rose-700'"
-                >{{ details.difficulty }}</span>
-              </div>
-
-              <!-- Examples -->
-              @if (details.examples.length) {
-                <div>
-                  <h4 class="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-slate-500">Example Sentences</h4>
-                  <div class="space-y-2">
-                    @for (ex of details.examples; track ex) {
-                      <p class="rounded-xl bg-slate-50 px-4 py-2.5 text-sm text-slate-700">{{ ex }}</p>
-                    }
-                  </div>
+        @else if (dailyHistory().length === 0) {
+          <div class="rounded-2xl border border-green-200 bg-white px-6 py-12 text-center shadow-sm">
+            <p class="text-4xl mb-3">📚</p>
+            <p class="text-sm font-bold text-slate-700">No previous words yet</p>
+            <p class="mt-1 text-xs text-slate-500">Complete today's words first!</p>
+          </div>
+        } @else {
+          <div class="grid gap-2">
+            @for (day of dailyHistory(); track day.date) {
+              <button
+                (click)="reviewDay(day)"
+                class="w-full rounded-xl border border-green-100 bg-white p-3 shadow-sm flex items-center justify-between transition hover:shadow-md hover:border-green-300 active:scale-[0.98]"
+              >
+                <div class="text-left">
+                  <p class="text-sm font-bold text-slate-900">{{ day.label }}</p>
+                  <p class="text-[10px] text-slate-500">{{ formatDate(day.date) }} · {{ day.level === 'adults' ? '💼 Adults' : '🎒 School' }}</p>
                 </div>
-              }
-
-              <!-- Synonyms -->
-              @if (details.synonyms.length) {
-                <div>
-                  <h4 class="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-slate-500">Synonyms</h4>
-                  <div class="flex flex-wrap gap-2">
-                    @for (syn of details.synonyms; track syn) {
-                      <span class="rounded-full bg-green-50 border border-green-200 px-3 py-1 text-sm text-green-700">{{ syn }}</span>
-                    }
-                  </div>
+                <div class="flex items-center gap-1.5">
+                  <span class="rounded-lg bg-green-100 px-2 py-0.5 text-xs font-bold text-green-700">{{ day.words.length }}</span>
+                  <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                 </div>
-              }
-
-              <!-- Antonyms -->
-              @if (details.antonyms.length) {
-                <div>
-                  <h4 class="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-slate-500">Antonyms</h4>
-                  <div class="flex flex-wrap gap-2">
-                    @for (ant of details.antonyms; track ant) {
-                      <span class="rounded-full bg-rose-50 border border-rose-200 px-3 py-1 text-sm text-rose-700">{{ ant }}</span>
-                    }
-                  </div>
-                </div>
-              }
-
-              <!-- Usage Tips -->
-              @if (details.usageTips) {
-                <div>
-                  <h4 class="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-slate-500">Usage Tips</h4>
-                  <p class="rounded-xl bg-green-50 border border-green-100 px-4 py-3 text-sm text-slate-700">{{ details.usageTips }}</p>
-                </div>
-              }
-            </div>
-          } @else {
-            <p class="py-6 text-center text-sm text-slate-400">Could not load details. Try again.</p>
-          }
-        </div>
-      </div>
-    }
-
-    <!-- QUICK QUIZ MODAL -->
-    @if (showQuiz()) {
-      <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 animate-fade-in" (click)="closeQuiz()">
-        <div class="relative w-full max-w-md rounded-[2rem] bg-white p-7 shadow-2xl" (click)="$event.stopPropagation()">
-          <button (click)="closeQuiz()" class="absolute top-4 right-4 rounded-full p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-          </button>
-
-          @if (quizComplete()) {
-            <div class="text-center py-6">
-              <div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
-                <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-              </div>
-              <h3 class="text-xl font-bold text-slate-900">Quiz Complete!</h3>
-              <p class="mt-2 text-3xl font-black text-green-600">{{ quizScore() }}/{{ quizQuestions().length }}</p>
-              <p class="mt-2 text-sm text-slate-500">{{ quizScore() === quizQuestions().length ? 'Perfect score!' : 'Keep practicing!' }}</p>
-              <button (click)="closeQuiz()" class="mt-5 rounded-2xl bg-green-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-green-700">Done</button>
-            </div>
-          } @else {
-            <div>
-              <div class="mb-1 flex items-center justify-between">
-                <span class="text-xs font-bold uppercase tracking-[0.2em] text-green-600">Quick Quiz</span>
-                <span class="text-xs font-semibold text-slate-500">{{ quizIndex() + 1 }}/{{ quizQuestions().length }}</span>
-              </div>
-
-              @if (quizQuestions()[quizIndex()]; as q) {
-                <h3 class="mt-3 text-base font-semibold text-slate-900 leading-relaxed">{{ q.question }}</h3>
-
-                <div class="mt-4 space-y-2">
-                  @for (option of q.options; track option; let i = $index) {
-                    <button
-                      (click)="answerQuiz(i)"
-                      [disabled]="quizAnswered() !== null"
-                      class="w-full rounded-xl border px-4 py-3 text-left text-sm font-medium transition"
-                      [class]="getQuizOptionClass(i)"
-                    >{{ option }}</button>
-                  }
-                </div>
-
-                @if (quizAnswered() !== null) {
-                  <button
-                    (click)="nextQuizQuestion()"
-                    class="mt-4 w-full rounded-xl bg-green-600 py-2.5 text-sm font-semibold text-white transition hover:bg-green-700"
-                  >{{ quizIndex() < quizQuestions().length - 1 ? 'Next Question' : 'See Results' }}</button>
-                }
-              }
-            </div>
-          }
-        </div>
-      </div>
-    }
-
-    <!-- GOAL CELEBRATION -->
-    @if (showGoalCelebration()) {
-      <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/30 animate-fade-in" (click)="dismissCelebration()">
-        <div class="rounded-[2rem] bg-white p-10 text-center shadow-2xl animate-bounce-in" (click)="$event.stopPropagation()">
-          <div class="text-6xl mb-4">&#127881;</div>
-          <h2 class="text-2xl font-black text-green-700">Goal Complete!</h2>
-          <p class="mt-2 text-lg text-slate-600">You mastered {{ dailyGoal() }} words today!</p>
-          <p class="mt-1 text-sm text-orange-500 font-semibold">{{ streak() }} day streak</p>
-          <button (click)="dismissCelebration()" class="mt-6 rounded-2xl bg-green-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-green-700">Keep Going!</button>
-        </div>
+              </button>
+            }
+          </div>
+        }
       </div>
     }
 

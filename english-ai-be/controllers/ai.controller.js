@@ -2,6 +2,9 @@ const Groq = require('groq-sdk');
 
 const groq = new Groq({ apiKey: process.env.GROQ_CLOUD });
 
+// In-memory cache for daily words (keyed by date+language)
+const dailyWordsCache = new Map();
+
 const QUIZ_FALLBACKS = {
   vocabulary: [
     {
@@ -604,5 +607,113 @@ exports.correct = async (req, res) => {
     } else {
       res.json({ success: false, reply: 'Sorry, something went wrong. Please try again.' });
     }
+  }
+};
+
+exports.dailyWords = async (req, res) => {
+  const { language = 'Hindi', date, level = 'school', excludeWords = [] } = req.body || {};
+  const today = date || new Date().toISOString().split('T')[0];
+  const cacheKey = `${today}_${language.toLowerCase()}_${level}`;
+
+  // Return cached words for same day+language+level
+  if (dailyWordsCache.has(cacheKey)) {
+    console.log('[AI DailyWords] Cache hit:', cacheKey);
+    return res.json({ success: true, words: dailyWordsCache.get(cacheKey), date: today });
+  }
+
+  const excludeLine = Array.isArray(excludeWords) && excludeWords.length > 0
+    ? `\nIMPORTANT: Do NOT include any of these words (already learned): ${excludeWords.slice(0, 200).join(', ')}.`
+    : '';
+
+  const levelDesc = level === 'adults'
+    ? 'Generate advanced/intermediate vocabulary words for adult learners. Include professional, business, medical, legal, technology, travel, and sophisticated everyday words. Words should be useful for working professionals and adults.'
+    : 'Generate simple school-level vocabulary words for young students. Words should be common everyday words a school kid would use. Pick from: Animals, Fruits, Vegetables, Colors, Numbers, Body Parts, Family, School Items, Food, Nature.';
+
+  const categoryList = level === 'adults'
+    ? 'Business, Technology, Health, Travel, Emotions, Food, Nature, Society, Science, Daily Life'
+    : 'Animals, Fruits, Vegetables, Colors, Numbers, Body Parts, Family, School Items, Food, Nature';
+
+  // Generate batches of 10 until we have 30 unique words (max 5 attempts)
+  const allWords = [];
+  const TARGET = 30;
+  const MAX_BATCHES = 5;
+
+  try {
+    console.log('[AI DailyWords] Request:', { language, date: today, level, target: TARGET });
+
+    for (let batch = 0; batch < MAX_BATCHES && allWords.length < TARGET; batch++) {
+      const remaining = TARGET - allWords.length;
+      const alreadyGenerated = allWords.map(w => w.english).join(', ');
+      const batchExclude = alreadyGenerated
+        ? `\nDo NOT repeat these words: ${alreadyGenerated}.`
+        : '';
+
+      const prompt = `${levelDesc}
+Generate exactly 10 unique ${language} vocabulary words.
+Mix different categories. Every word must be different.
+${excludeLine}${batchExclude}
+
+Return ONLY valid JSON with this exact shape:
+{
+  "words": [
+    {
+      "english": "Apple",
+      "native": "सेब",
+      "transliteration": "Seb",
+      "meaning": "A sweet red fruit",
+      "example": "I eat an apple every day.",
+      "emoji": "🍎",
+      "category": "Fruits"
+    }
+  ]
+}
+
+Rules:
+- "english" is the English word
+- "native" is the word in ${language} native script
+- "transliteration" is Romanized pronunciation
+- "meaning" is a simple English meaning (4-8 words)
+- "example" is a simple English sentence using the word
+- "emoji" is a single emoji that represents the word
+- "category" must be one of: ${categoryList}
+- All 10 words MUST be unique and from different categories
+- Return ONLY valid JSON, no markdown, no code fences`;
+
+      const text = await generateModelText(prompt);
+      const parsed = parseJsonResponse(text);
+
+      if (parsed && Array.isArray(parsed.words)) {
+        const batchWords = parsed.words
+          .filter(w => w.english && w.native && w.meaning)
+          .filter(w => !allWords.some(existing => existing.english.toLowerCase() === w.english.toLowerCase()))
+          .slice(0, remaining)
+          .map(w => ({
+            english: w.english || '',
+            native: w.native || '',
+            transliteration: w.transliteration || w.english || '',
+            meaning: w.meaning || '',
+            example: w.example || `This is ${w.english}.`,
+            emoji: w.emoji || '📚',
+            category: w.category || 'General',
+          }));
+        allWords.push(...batchWords);
+        console.log(`[AI DailyWords] Batch ${batch + 1}: got ${batchWords.length}, total: ${allWords.length}`);
+      }
+    }
+
+    const words = allWords.slice(0, TARGET);
+
+    if (words.length === 0) {
+      return res.json({ success: false, words: [], date: today });
+    }
+
+    // Cache for the day
+    dailyWordsCache.set(cacheKey, words);
+
+    console.log('[AI DailyWords] Success, total words:', words.length);
+    res.json({ success: true, words, date: today });
+  } catch (error) {
+    console.error('[AI DailyWords] Error:', error.message);
+    res.json({ success: false, words: [], date: today });
   }
 };
