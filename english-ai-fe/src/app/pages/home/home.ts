@@ -1,6 +1,6 @@
 import { Component } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { GLOBAL_LANGUAGE_OPTIONS, INDIAN_LANGUAGE_OPTIONS } from '../../shared/languages';
+import { INDIAN_LANGUAGE_OPTIONS } from '../../shared/languages';
 
 @Component({
   selector: 'app-home',
@@ -14,18 +14,13 @@ export class Home {
     learners: `${180 + index * 9}K`,
   }));
 
-  globalLanguages = GLOBAL_LANGUAGE_OPTIONS.map((language, index) => ({
-    ...language,
-    learners: `${340 + index * 70}K`,
-  }));
-
   heroLanguages = [
     this.indianLanguages[0],
     this.indianLanguages[1],
     this.indianLanguages[2],
     this.indianLanguages[3],
     this.indianLanguages[4],
-    this.globalLanguages[0],
+    this.indianLanguages[5],
   ];
 
   features = [

@@ -104,15 +104,6 @@
       </div>
     </div>
 
-    <div class="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-hide">
-      @for (lang of globalLanguages; track lang.code) {
-        <div class="flex-shrink-0 snap-start bg-white rounded-2xl p-6 w-44 text-center border border-gray-100 hover:border-green-200 hover:shadow-lg transition-all cursor-pointer group">
-          <span class="text-4xl block mb-3">{{ lang.flag }}</span>
-          <h4 class="font-semibold text-gray-900 text-sm">{{ lang.name }}</h4>
-          <p class="text-xs text-gray-400 mt-1">{{ lang.learners }} learners</p>
-        </div>
-      }
-    </div>
   </div>
 </section>
 
