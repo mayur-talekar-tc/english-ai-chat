@@ -61,6 +61,29 @@ async function initializeSchema() {
       );
     `);
 
+    // Add new columns to user_progress if they don't exist
+    const newColumns = [
+      { name: 'total_xp', def: 'INTEGER NOT NULL DEFAULT 0' },
+      { name: 'weekly_xp', def: 'INTEGER NOT NULL DEFAULT 0' },
+      { name: 'login_streak', def: 'INTEGER NOT NULL DEFAULT 0' },
+      { name: 'last_login', def: 'DATE' },
+      { name: 'words_learned_today', def: 'INTEGER NOT NULL DEFAULT 0' },
+      { name: 'words_learned_week', def: 'INTEGER NOT NULL DEFAULT 0' },
+      { name: 'quiz_correct', def: 'INTEGER NOT NULL DEFAULT 0' },
+      { name: 'quiz_total', def: 'INTEGER NOT NULL DEFAULT 0' },
+      { name: 'spelling_correct', def: 'INTEGER NOT NULL DEFAULT 0' },
+      { name: 'spelling_total', def: 'INTEGER NOT NULL DEFAULT 0' },
+      { name: 'weekly_reset_date', def: 'DATE' },
+    ];
+
+    for (const col of newColumns) {
+      try {
+        await pool.query(`ALTER TABLE user_progress ADD COLUMN IF NOT EXISTS ${col.name} ${col.def}`);
+      } catch (e) {
+        // Column might already exist
+      }
+    }
+
     console.log('Tables created successfully');
   } catch (error) {
     console.error('Schema initialization failed:', error);

@@ -1,7 +1,10 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
+import { FormsModule } from '@angular/forms';
 import { AI_API_URL } from '../../shared/api';
 import { INDIAN_LANGUAGE_OPTIONS } from '../../shared/languages';
+import { ProgressService } from '../../services/progress';
+import { AuthService } from '../../services/auth';
 
 interface DailyWord {
   english: string;
@@ -20,7 +23,22 @@ interface DayHistory {
   level: string;
 }
 
-type LearnTab = 'today' | 'previous';
+interface QuizQuestion {
+  question: string;
+  options: string[];
+  correct: number;
+  selected?: number;
+}
+
+interface FillBlankSentence {
+  sentence: string;
+  blank_word: string;
+  options: string[];
+  correct: number;
+  selected?: number;
+}
+
+type LearnTab = 'today' | 'previous' | 'quiz' | 'spelling' | 'practice';
 type Level = 'school' | 'adults';
 
 const DAILY_WORDS_KEY = 'bhashaai_daily_words';
@@ -52,12 +70,14 @@ const CATEGORY_COLORS: Record<string, string> = {
 
 @Component({
   selector: 'app-learn',
-  imports: [],
+  imports: [FormsModule],
   templateUrl: './learn.html',
   styleUrl: './learn.css',
 })
 export class Learn {
   private http = inject(HttpClient);
+  progress = inject(ProgressService);
+  auth = inject(AuthService);
 
   readonly indianLanguages = INDIAN_LANGUAGE_OPTIONS;
 
@@ -74,6 +94,32 @@ export class Learn {
   streak = signal(0);
   dailyHistory = signal<DayHistory[]>([]);
   reviewingDay = signal<DayHistory | null>(null);
+
+  // Quiz state
+  quizQuestions = signal<QuizQuestion[]>([]);
+  quizCurrentIndex = signal(0);
+  quizFinished = signal(false);
+  quizScore = signal(0);
+  quizLoading = signal(false);
+  showQuizButton = signal(false);
+
+  // Spelling state
+  spellingWords = signal<DailyWord[]>([]);
+  spellingIndex = signal(0);
+  spellingInput = signal('');
+  spellingResult = signal<'correct' | 'wrong' | null>(null);
+  spellingCorrectWord = signal('');
+  spellingScore = signal(0);
+  spellingTotal = signal(0);
+  spellingFinished = signal(false);
+
+  // Fill in the blank state
+  fillBlankSentences = signal<FillBlankSentence[]>([]);
+  fillBlankIndex = signal(0);
+  fillBlankFinished = signal(false);
+  fillBlankScore = signal(0);
+  fillBlankLoading = signal(false);
+  fillBlankResult = signal<'correct' | 'wrong' | null>(null);
 
   // Computed
   currentCard = computed(() => this.words()[this.currentIndex()] ?? null);
@@ -105,6 +151,15 @@ export class Learn {
       this.loadHistory();
       this.reviewingDay.set(null);
     }
+    if (tab === 'quiz' && this.quizQuestions().length === 0) {
+      this.generateQuiz();
+    }
+    if (tab === 'spelling') {
+      this.startSpelling();
+    }
+    if (tab === 'practice' && this.fillBlankSentences().length === 0) {
+      this.loadFillBlank();
+    }
   }
 
   onLevelChange(event: Event) {
@@ -112,7 +167,6 @@ export class Learn {
     const newLevel = select.value as Level;
     this.level.set(newLevel);
     localStorage.setItem(LEVEL_KEY, newLevel);
-    // Reload words for new level
     this.todayComplete.set(false);
     this.learnedIndices.set(new Set());
     this.reviewIndices.set(new Set());
@@ -139,7 +193,6 @@ export class Learn {
     const select = event.target as HTMLSelectElement;
     this.selectedLanguage.set(select.value);
     localStorage.setItem(LANG_KEY, select.value);
-    // Reload words for new language
     this.todayComplete.set(false);
     this.learnedIndices.set(new Set());
     this.reviewIndices.set(new Set());
@@ -162,6 +215,10 @@ export class Learn {
           this.learnedIndices.set(learned);
           if (learned.size >= data.words.length) {
             this.todayComplete.set(true);
+          }
+          // Show quiz button after 10 words learned
+          if (learned.size >= 10) {
+            this.showQuizButton.set(true);
           }
           return;
         }
@@ -227,13 +284,23 @@ export class Learn {
     newLearned.add(index);
     this.learnedIndices.set(newLearned);
 
+    // +5 XP for word learned
+    this.progress.addXP(5, 'word');
+
     const today = new Date().toISOString().split('T')[0];
     this.saveTodayState(today, this.words(), Array.from(newLearned));
+
+    // Show quiz button after 10 words
+    if (newLearned.size >= 10) {
+      this.showQuizButton.set(true);
+    }
 
     if (newLearned.size >= this.words().length) {
       this.todayComplete.set(true);
       this.saveTodayToHistory(today);
       this.updateStreak();
+      // +20 XP for daily goal complete
+      this.progress.addXP(20, 'daily_complete');
     } else {
       this.goToNextUnlearned();
     }
@@ -358,6 +425,187 @@ export class Learn {
     }
     this.streak.set(count);
     localStorage.setItem(STREAK_KEY, JSON.stringify({ lastDate: today, count }));
+  }
+
+  // === QUIZ FROM TODAY'S WORDS ===
+  generateQuiz() {
+    const learnedWords = this.words().filter((_, i) => this.learnedIndices().has(i));
+    if (learnedWords.length < 5) return;
+
+    this.quizLoading.set(true);
+    const shuffled = [...learnedWords].sort(() => Math.random() - 0.5).slice(0, 5);
+
+    const questions: QuizQuestion[] = shuffled.map(word => {
+      const otherWords = learnedWords
+        .filter(w => w.english !== word.english)
+        .sort(() => Math.random() - 0.5)
+        .slice(0, 3);
+
+      const options = [word.english, ...otherWords.map(w => w.english)].sort(() => Math.random() - 0.5);
+      const correctIndex = options.indexOf(word.english);
+
+      return {
+        question: `Which word means "${word.meaning}"? ${word.emoji}`,
+        options,
+        correct: correctIndex,
+      };
+    });
+
+    this.quizQuestions.set(questions);
+    this.quizCurrentIndex.set(0);
+    this.quizFinished.set(false);
+    this.quizScore.set(0);
+    this.quizLoading.set(false);
+  }
+
+  selectQuizAnswer(optionIndex: number) {
+    const questions = [...this.quizQuestions()];
+    const current = questions[this.quizCurrentIndex()];
+    if (current.selected !== undefined) return;
+
+    current.selected = optionIndex;
+    questions[this.quizCurrentIndex()] = { ...current };
+    this.quizQuestions.set(questions);
+
+    if (optionIndex === current.correct) {
+      this.quizScore.update(s => s + 1);
+      this.progress.addXP(10, 'quiz_correct');
+    }
+    this.progress.addXP(0, 'quiz_total');
+
+    // Auto-advance after 1.5s
+    setTimeout(() => {
+      if (this.quizCurrentIndex() < this.quizQuestions().length - 1) {
+        this.quizCurrentIndex.update(i => i + 1);
+      } else {
+        this.quizFinished.set(true);
+      }
+    }, 1200);
+  }
+
+  resetQuiz() {
+    this.quizQuestions.set([]);
+    this.quizCurrentIndex.set(0);
+    this.quizFinished.set(false);
+    this.quizScore.set(0);
+    this.generateQuiz();
+  }
+
+  getQuizMessage(): string {
+    const score = this.quizScore();
+    const total = this.quizQuestions().length;
+    if (score === total) return 'Perfect! Shabash! 🎉';
+    if (score >= total * 0.8) return 'Great job! 🌟';
+    if (score >= total * 0.6) return 'Good effort! 👍';
+    return 'Keep practicing! 💪';
+  }
+
+  // === SPELLING PRACTICE ===
+  startSpelling() {
+    const learnedWords = this.words().filter((_, i) => this.learnedIndices().has(i));
+    if (learnedWords.length === 0) {
+      this.spellingWords.set(this.words().slice(0, 10));
+    } else {
+      this.spellingWords.set([...learnedWords].sort(() => Math.random() - 0.5).slice(0, 10));
+    }
+    this.spellingIndex.set(0);
+    this.spellingInput.set('');
+    this.spellingResult.set(null);
+    this.spellingScore.set(0);
+    this.spellingTotal.set(0);
+    this.spellingFinished.set(false);
+  }
+
+  checkSpelling() {
+    const word = this.spellingWords()[this.spellingIndex()];
+    if (!word) return;
+
+    const input = this.spellingInput().trim().toLowerCase();
+    const correct = word.english.trim().toLowerCase();
+
+    this.spellingTotal.update(t => t + 1);
+
+    if (input === correct) {
+      this.spellingResult.set('correct');
+      this.spellingScore.update(s => s + 1);
+      this.progress.addXP(15, 'spelling_correct');
+    } else {
+      this.spellingResult.set('wrong');
+      this.spellingCorrectWord.set(word.english);
+    }
+    this.progress.addXP(0, 'spelling_total');
+  }
+
+  nextSpellingWord() {
+    if (this.spellingIndex() < this.spellingWords().length - 1) {
+      this.spellingIndex.update(i => i + 1);
+      this.spellingInput.set('');
+      this.spellingResult.set(null);
+    } else {
+      this.spellingFinished.set(true);
+    }
+  }
+
+  resetSpelling() {
+    this.startSpelling();
+  }
+
+  // === FILL IN THE BLANK ===
+  loadFillBlank() {
+    const learnedWords = this.words().filter((_, i) => this.learnedIndices().has(i));
+    const wordsToUse = learnedWords.length >= 5 ? learnedWords : this.words().slice(0, 10);
+
+    this.fillBlankLoading.set(true);
+    this.fillBlankFinished.set(false);
+    this.fillBlankScore.set(0);
+    this.fillBlankIndex.set(0);
+    this.fillBlankResult.set(null);
+
+    this.http.post<{ success: boolean; sentences: FillBlankSentence[] }>(`${AI_API_URL}/fill-blank`, {
+      words: wordsToUse,
+    }).subscribe({
+      next: (res) => {
+        if (res.success && res.sentences?.length > 0) {
+          this.fillBlankSentences.set(res.sentences);
+        }
+        this.fillBlankLoading.set(false);
+      },
+      error: () => {
+        this.fillBlankLoading.set(false);
+      },
+    });
+  }
+
+  selectFillBlankAnswer(optionIndex: number) {
+    const sentences = [...this.fillBlankSentences()];
+    const current = sentences[this.fillBlankIndex()];
+    if (current.selected !== undefined) return;
+
+    current.selected = optionIndex;
+    sentences[this.fillBlankIndex()] = { ...current };
+    this.fillBlankSentences.set(sentences);
+
+    if (optionIndex === current.correct) {
+      this.fillBlankResult.set('correct');
+      this.fillBlankScore.update(s => s + 1);
+      this.progress.addXP(10, 'quiz_correct');
+    } else {
+      this.fillBlankResult.set('wrong');
+    }
+
+    setTimeout(() => {
+      this.fillBlankResult.set(null);
+      if (this.fillBlankIndex() < this.fillBlankSentences().length - 1) {
+        this.fillBlankIndex.update(i => i + 1);
+      } else {
+        this.fillBlankFinished.set(true);
+      }
+    }, 1200);
+  }
+
+  resetFillBlank() {
+    this.fillBlankSentences.set([]);
+    this.loadFillBlank();
   }
 
   // === HELPERS ===

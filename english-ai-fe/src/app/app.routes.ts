@@ -6,6 +6,8 @@ export const routes: Routes = [
   { path: 'chat', loadComponent: () => import('./pages/chat/chat').then(m => m.Chat) },
   { path: 'quiz', loadComponent: () => import('./pages/quiz/quiz').then(m => m.Quiz) },
   { path: 'voice', loadComponent: () => import('./pages/voice/voice').then(m => m.Voice) },
+  { path: 'leaderboard', loadComponent: () => import('./pages/leaderboard/leaderboard').then(m => m.Leaderboard) },
+{ path: 'profile', loadComponent: () => import('./pages/profile/profile').then(m => m.Profile) },
   { path: 'login', loadComponent: () => import('./pages/login/login').then(m => m.Login) },
   { path: 'register', loadComponent: () => import('./pages/register/register').then(m => m.Register) },
   { path: '**', redirectTo: '' },

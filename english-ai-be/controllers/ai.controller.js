@@ -610,6 +610,79 @@ exports.correct = async (req, res) => {
   }
 };
 
+exports.fillBlank = async (req, res) => {
+  const { words = [] } = req.body || {};
+
+  if (!words.length) {
+    return res.json({ success: false, error: 'Words required' });
+  }
+
+  try {
+    const wordList = words.slice(0, 15).map(w => w.english || w).join(', ');
+
+    const prompt = `Generate exactly 10 fill-in-the-blank sentences for vocabulary practice.
+Use ONLY these words: ${wordList}
+
+Return ONLY valid JSON with this exact shape:
+{
+  "sentences": [
+    {
+      "sentence": "The ___ is red and sweet.",
+      "blank_word": "apple",
+      "options": ["apple", "mango", "cat", "dog"],
+      "correct": 0
+    }
+  ]
+}
+
+Rules:
+- Each sentence must have exactly one blank shown as "___"
+- "blank_word" is the correct word that fills the blank
+- "options" must have exactly 4 choices, including the correct one
+- "correct" is the zero-based index of the correct option
+- Sentences should be simple, suitable for school students
+- Use different words from the list for each sentence
+- Make sentences fun and engaging
+- Return ONLY valid JSON, no markdown`;
+
+    const text = await generateModelText(prompt);
+    const parsed = parseJsonResponse(text);
+
+    if (parsed && Array.isArray(parsed.sentences) && parsed.sentences.length > 0) {
+      const sentences = parsed.sentences
+        .filter(s => s.sentence && s.blank_word && Array.isArray(s.options) && s.options.length === 4)
+        .slice(0, 10)
+        .map(s => ({
+          sentence: s.sentence,
+          blank_word: s.blank_word,
+          options: s.options,
+          correct: typeof s.correct === 'number' ? s.correct : 0,
+        }));
+
+      return res.json({ success: true, sentences });
+    }
+
+    // Fallback: generate simple sentences from words
+    const fallbackSentences = words.slice(0, 10).map((w, i) => {
+      const word = w.english || w;
+      const otherWords = words.filter((_, j) => j !== i).slice(0, 3).map(x => x.english || x);
+      while (otherWords.length < 3) otherWords.push('thing');
+      const options = [word, ...otherWords].sort(() => Math.random() - 0.5);
+      return {
+        sentence: `The ___ is something we know.`,
+        blank_word: word,
+        options,
+        correct: options.indexOf(word),
+      };
+    });
+
+    res.json({ success: true, sentences: fallbackSentences });
+  } catch (error) {
+    console.error('[AI FillBlank] Error:', error.message);
+    res.json({ success: false, error: 'Fill blank generation failed' });
+  }
+};
+
 exports.dailyWords = async (req, res) => {
   const { language = 'Hindi', date, level = 'school', excludeWords = [] } = req.body || {};
   const today = date || new Date().toISOString().split('T')[0];

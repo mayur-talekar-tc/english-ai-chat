@@ -1,0 +1,176 @@
+<section class="min-h-[calc(100vh-4rem)] py-6" style="background: linear-gradient(180deg, #f0fdf4 0%, #f8fafc 100%);">
+  <div class="mx-auto max-w-xl px-4">
+
+    @if (!auth.isLoggedIn()) {
+      <div class="mt-16 rounded-2xl border border-green-200 bg-white px-6 py-12 text-center shadow-sm">
+        <p class="text-4xl mb-3">🔒</p>
+        <p class="text-sm font-bold text-slate-700">Please login to see your profile</p>
+      </div>
+    }
+
+    @else {
+      <!-- Profile Header -->
+      <div class="mb-6 rounded-2xl bg-gradient-to-br from-green-500 via-emerald-500 to-teal-600 p-6 text-white shadow-lg">
+        <div class="flex items-center gap-4">
+          <div class="flex h-16 w-16 items-center justify-center rounded-full bg-white/20 text-3xl">
+            {{ progress.currentLevel().badge }}
+          </div>
+          <div>
+            <h1 class="text-xl font-black">{{ auth.currentUser()?.name }}</h1>
+            <p class="text-sm text-green-100">{{ progress.currentLevel().name }} · {{ progress.totalXp() }} XP</p>
+          </div>
+        </div>
+
+        <!-- Level Progress Bar -->
+        <div class="mt-4">
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-[10px] font-bold text-green-100">Level {{ progress.currentLevel().level }}</span>
+            <span class="text-[10px] font-bold text-green-100">{{ progress.getProgressToNextLevel() }}%</span>
+          </div>
+          <div class="h-2.5 w-full rounded-full bg-white/20 overflow-hidden">
+            <div class="h-2.5 rounded-full bg-white transition-all duration-700"
+              [style.width.%]="progress.getProgressToNextLevel()"></div>
+          </div>
+          <p class="mt-1 text-[10px] text-green-200">{{ progress.totalXp() }}/{{ progress.getNextLevelXP() }} XP to next level</p>
+        </div>
+      </div>
+
+      <!-- Stats Grid -->
+      <div class="mb-6 grid grid-cols-3 gap-3">
+        <div class="rounded-xl bg-white border border-green-200 p-3 text-center shadow-sm">
+          <p class="text-2xl">📚</p>
+          <p class="text-lg font-black text-slate-900">{{ progress.wordsLearned() }}</p>
+          <p class="text-[9px] text-slate-500 font-medium">Words Learned</p>
+        </div>
+        <div class="rounded-xl bg-white border border-orange-200 p-3 text-center shadow-sm">
+          <p class="text-2xl">🔥</p>
+          <p class="text-lg font-black text-slate-900">{{ progress.loginStreak() }}</p>
+          <p class="text-[9px] text-slate-500 font-medium">Day Streak</p>
+        </div>
+        <div class="rounded-xl bg-white border border-purple-200 p-3 text-center shadow-sm">
+          <p class="text-2xl">⚡</p>
+          <p class="text-lg font-black text-slate-900">{{ progress.weeklyXp() }}</p>
+          <p class="text-[9px] text-slate-500 font-medium">Weekly XP</p>
+        </div>
+      </div>
+
+      <!-- Levels System -->
+      <div class="mb-6 rounded-2xl border border-green-200 bg-white p-5 shadow-sm">
+        <h2 class="text-sm font-black text-slate-900 mb-3">🎯 Levels</h2>
+        <div class="space-y-2">
+          <div class="flex items-center gap-3 rounded-xl p-2.5 transition-all"
+            [class]="progress.currentLevel().level >= 1 ? 'bg-green-50 border border-green-200' : 'opacity-50'">
+            <span class="text-xl">🌱</span>
+            <div class="flex-1"><p class="text-xs font-bold text-slate-900">Beginner</p><p class="text-[9px] text-slate-400">0-100 XP</p></div>
+            @if (progress.currentLevel().level >= 1) { <span class="text-green-500 text-sm">✓</span> }
+          </div>
+          <div class="flex items-center gap-3 rounded-xl p-2.5 transition-all"
+            [class]="progress.currentLevel().level >= 2 ? 'bg-orange-50 border border-orange-200' : 'opacity-50'">
+            <span class="text-xl">🥉</span>
+            <div class="flex-1"><p class="text-xs font-bold text-slate-900">Bronze</p><p class="text-[9px] text-slate-400">101-300 XP</p></div>
+            @if (progress.currentLevel().level >= 2) { <span class="text-green-500 text-sm">✓</span> }
+          </div>
+          <div class="flex items-center gap-3 rounded-xl p-2.5 transition-all"
+            [class]="progress.currentLevel().level >= 3 ? 'bg-slate-100 border border-slate-300' : 'opacity-50'">
+            <span class="text-xl">🥈</span>
+            <div class="flex-1"><p class="text-xs font-bold text-slate-900">Silver</p><p class="text-[9px] text-slate-400">301-600 XP</p></div>
+            @if (progress.currentLevel().level >= 3) { <span class="text-green-500 text-sm">✓</span> }
+          </div>
+          <div class="flex items-center gap-3 rounded-xl p-2.5 transition-all"
+            [class]="progress.currentLevel().level >= 4 ? 'bg-yellow-50 border border-yellow-300' : 'opacity-50'">
+            <span class="text-xl">🥇</span>
+            <div class="flex-1"><p class="text-xs font-bold text-slate-900">Gold</p><p class="text-[9px] text-slate-400">601-1000 XP</p></div>
+            @if (progress.currentLevel().level >= 4) { <span class="text-green-500 text-sm">✓</span> }
+          </div>
+          <div class="flex items-center gap-3 rounded-xl p-2.5 transition-all"
+            [class]="progress.currentLevel().level >= 5 ? 'bg-amber-50 border border-amber-300' : 'opacity-50'">
+            <span class="text-xl">🏆</span>
+            <div class="flex-1"><p class="text-xs font-bold text-slate-900">Champion</p><p class="text-[9px] text-slate-400">1000+ XP</p></div>
+            @if (progress.currentLevel().level >= 5) { <span class="text-green-500 text-sm">✓</span> }
+          </div>
+        </div>
+      </div>
+
+      <!-- Weekly Report Card -->
+      @if (isLoading()) {
+        <div class="rounded-2xl border border-green-200 bg-white px-6 py-10 text-center shadow-sm">
+          <div class="mx-auto mb-3 h-8 w-8 rounded-full border-4 border-green-100 border-t-green-500 animate-spin"></div>
+          <p class="text-sm font-bold text-slate-700">Loading report...</p>
+        </div>
+      }
+
+      @else if (report(); as r) {
+        <div class="mb-6 rounded-2xl border-2 border-green-300 bg-white p-5 shadow-md">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-sm font-black text-slate-900">📋 Weekly Report Card</h2>
+            <div class="rounded-xl border-2 px-3 py-1.5" [class]="getGradeColor(r.grade)">
+              <span class="text-lg font-black">{{ r.grade }}</span>
+            </div>
+          </div>
+
+          <div class="space-y-3">
+            <div class="flex items-center justify-between rounded-xl bg-slate-50 p-3">
+              <span class="text-xs font-semibold text-slate-600">📚 Words Learned</span>
+              <span class="text-sm font-black text-slate-900">{{ r.wordsLearnedWeek }}</span>
+            </div>
+            <div class="flex items-center justify-between rounded-xl bg-slate-50 p-3">
+              <span class="text-xs font-semibold text-slate-600">🧠 Quiz Accuracy</span>
+              <span class="text-sm font-black" [class]="r.quizAccuracy >= 70 ? 'text-green-600' : 'text-orange-600'">{{ r.quizAccuracy }}%</span>
+            </div>
+            <div class="flex items-center justify-between rounded-xl bg-slate-50 p-3">
+              <span class="text-xs font-semibold text-slate-600">✏️ Spelling Score</span>
+              <span class="text-sm font-black" [class]="r.spellingScore >= 70 ? 'text-green-600' : 'text-orange-600'">{{ r.spellingScore }}%</span>
+            </div>
+            <div class="flex items-center justify-between rounded-xl bg-slate-50 p-3">
+              <span class="text-xs font-semibold text-slate-600">🔥 Day Streak</span>
+              <span class="text-sm font-black text-orange-500">{{ r.streak }} days</span>
+            </div>
+          </div>
+
+          <!-- Share Buttons -->
+          <div class="mt-5 grid grid-cols-2 gap-3">
+            <button
+              (click)="shareOnWhatsApp()"
+              class="flex items-center justify-center gap-1.5 rounded-xl bg-green-500 px-4 py-3 text-xs font-bold text-white hover:bg-green-600 transition-all"
+            >
+              📱 Share on WhatsApp
+            </button>
+            <button
+              (click)="shareProgress()"
+              class="flex items-center justify-center gap-1.5 rounded-xl bg-blue-500 px-4 py-3 text-xs font-bold text-white hover:bg-blue-600 transition-all"
+            >
+              👨‍👩‍👧 Share with Parents
+            </button>
+          </div>
+        </div>
+      }
+
+      <!-- XP Rewards Info -->
+      <div class="rounded-2xl border border-green-200 bg-white p-5 shadow-sm">
+        <h2 class="text-sm font-black text-slate-900 mb-3">⚡ How to Earn XP</h2>
+        <div class="space-y-2 text-xs">
+          <div class="flex items-center justify-between rounded-lg bg-green-50 p-2.5">
+            <span class="font-semibold text-slate-700">Learn a word (Yaad hai)</span>
+            <span class="font-black text-green-600">+5 XP</span>
+          </div>
+          <div class="flex items-center justify-between rounded-lg bg-blue-50 p-2.5">
+            <span class="font-semibold text-slate-700">Correct quiz answer</span>
+            <span class="font-black text-blue-600">+10 XP</span>
+          </div>
+          <div class="flex items-center justify-between rounded-lg bg-purple-50 p-2.5">
+            <span class="font-semibold text-slate-700">Correct spelling</span>
+            <span class="font-black text-purple-600">+15 XP</span>
+          </div>
+          <div class="flex items-center justify-between rounded-lg bg-amber-50 p-2.5">
+            <span class="font-semibold text-slate-700">Daily goal complete</span>
+            <span class="font-black text-amber-600">+20 XP</span>
+          </div>
+          <div class="flex items-center justify-between rounded-lg bg-orange-50 p-2.5">
+            <span class="font-semibold text-slate-700">Daily login reward</span>
+            <span class="font-black text-orange-600">+5-50 XP</span>
+          </div>
+        </div>
+      </div>
+    }
+  </div>
+</section>

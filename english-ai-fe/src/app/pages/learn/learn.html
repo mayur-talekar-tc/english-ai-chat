@@ -25,7 +25,7 @@
       </div>
     </div>
 
-    <!-- STATS ROW: Streak + Progress + Count -->
+    <!-- STATS ROW: Streak + Progress + XP -->
     <div class="mb-5 flex items-center gap-3">
       <!-- Streak -->
       <div class="flex items-center gap-1.5 rounded-xl bg-orange-50 border border-orange-200 px-3 py-2">
@@ -49,26 +49,50 @@
           ></div>
         </div>
       </div>
+
+      <!-- XP Badge -->
+      <div class="flex items-center gap-1 rounded-xl bg-purple-50 border border-purple-200 px-2.5 py-2">
+        <span class="text-sm">{{ progress.currentLevel().badge }}</span>
+        <p class="text-[10px] font-bold text-purple-600">{{ progress.totalXp() }} XP</p>
+      </div>
     </div>
 
     <!-- TABS -->
-    <div class="mb-5 flex gap-1 rounded-xl bg-slate-100 p-0.5">
+    <div class="mb-5 flex gap-0.5 rounded-xl bg-slate-100 p-0.5 overflow-x-auto">
       <button
         (click)="setTab('today')"
-        class="flex-1 rounded-lg px-3 py-2 text-xs font-bold transition-all"
+        class="flex-1 rounded-lg px-2 py-2 text-[11px] font-bold transition-all whitespace-nowrap"
         [class]="activeTab() === 'today' ? 'bg-white text-green-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'"
       >
-        Today
+        📚 Today
+      </button>
+      <button
+        (click)="setTab('quiz')"
+        class="flex-1 rounded-lg px-2 py-2 text-[11px] font-bold transition-all whitespace-nowrap"
+        [class]="activeTab() === 'quiz' ? 'bg-white text-green-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'"
+      >
+        🧠 Quiz
+      </button>
+      <button
+        (click)="setTab('spelling')"
+        class="flex-1 rounded-lg px-2 py-2 text-[11px] font-bold transition-all whitespace-nowrap"
+        [class]="activeTab() === 'spelling' ? 'bg-white text-green-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'"
+      >
+        ✏️ Spelling
+      </button>
+      <button
+        (click)="setTab('practice')"
+        class="flex-1 rounded-lg px-2 py-2 text-[11px] font-bold transition-all whitespace-nowrap"
+        [class]="activeTab() === 'practice' ? 'bg-white text-green-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'"
+      >
+        📝 Practice
       </button>
       <button
         (click)="setTab('previous')"
-        class="flex-1 rounded-lg px-3 py-2 text-xs font-bold transition-all"
+        class="flex-1 rounded-lg px-2 py-2 text-[11px] font-bold transition-all whitespace-nowrap"
         [class]="activeTab() === 'previous' ? 'bg-white text-green-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'"
       >
-        Previous
-        @if (dailyHistory().length > 0) {
-          <span class="ml-1 rounded-full bg-green-100 px-1.5 py-0.5 text-[9px] text-green-700">{{ dailyHistory().length }}</span>
-        }
+        📅 Previous
       </button>
     </div>
 
@@ -93,6 +117,16 @@
           @if (streak() > 0) {
             <p class="mt-1.5 text-sm text-orange-500 font-bold">{{ streak() }} din ki streak! 🔥</p>
           }
+          <p class="mt-1 text-xs text-purple-600 font-bold">+20 XP bonus! ⚡</p>
+
+          <!-- Quiz Button -->
+          <button
+            (click)="setTab('quiz')"
+            class="mt-4 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-500 px-6 py-3 text-sm font-bold text-white shadow-md hover:shadow-lg transition-all active:scale-[0.97] animate-pulse-green"
+          >
+            🧠 Take Quiz from Today's Words!
+          </button>
+
           <p class="mt-3 text-xs text-slate-500">Kal naye words aayenge!</p>
 
           <div class="mt-5 grid grid-cols-2 gap-1.5 max-h-64 overflow-y-auto">
@@ -111,6 +145,19 @@
 
       <!-- FLASHCARD -->
       @else if (currentCard(); as card) {
+        <!-- Quiz button after 10 words -->
+        @if (showQuizButton() && learnedCount() >= 10) {
+          <div class="mb-4 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 p-3 text-center animate-bounce-in">
+            <p class="text-xs font-bold text-blue-700 mb-2">🎯 {{ learnedCount() }} words learned! Ready for a quiz?</p>
+            <button
+              (click)="setTab('quiz')"
+              class="rounded-lg bg-blue-500 px-4 py-1.5 text-xs font-bold text-white hover:bg-blue-600 transition-all"
+            >
+              🧠 Take Quiz Now!
+            </button>
+          </div>
+        }
+
         <!-- Word dots -->
         <div class="mb-4 flex gap-1 flex-wrap justify-center">
           @for (word of words(); track $index) {
@@ -205,10 +252,283 @@
             class="flex-1 flex items-center justify-center gap-1.5 rounded-xl border-2 border-green-300 bg-green-500 px-3 py-3.5 text-sm font-bold text-white shadow-sm transition hover:bg-green-600 active:scale-[0.97]"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
-            Yaad hai
+            Yaad hai (+5 XP)
           </button>
         </div>
       }
+    }
+
+    <!-- ==================== QUIZ TAB ==================== -->
+    @if (activeTab() === 'quiz') {
+      <div class="animate-fade-in">
+        @if (quizLoading()) {
+          <div class="rounded-2xl border border-blue-200 bg-white px-6 py-14 text-center shadow-md">
+            <div class="mx-auto mb-3 h-10 w-10 rounded-full border-4 border-blue-100 border-t-blue-500 animate-spin"></div>
+            <p class="text-base font-bold text-slate-900">Generating quiz...</p>
+          </div>
+        }
+
+        @else if (learnedCount() < 5 && !quizFinished()) {
+          <div class="rounded-2xl border border-blue-200 bg-white px-6 py-12 text-center shadow-sm">
+            <p class="text-4xl mb-3">🧠</p>
+            <p class="text-sm font-bold text-slate-700">Learn at least 5 words first!</p>
+            <p class="mt-1 text-xs text-slate-500">You've learned {{ learnedCount() }}/5 words</p>
+            <button (click)="setTab('today')" class="mt-4 rounded-xl bg-green-500 px-5 py-2 text-sm font-bold text-white hover:bg-green-600">
+              Go Learn Words
+            </button>
+          </div>
+        }
+
+        @else if (quizFinished()) {
+          <div class="rounded-2xl bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 border-2 border-blue-300 px-6 py-8 text-center shadow-md animate-bounce-in">
+            <p class="text-5xl mb-3">{{ quizScore() === quizQuestions().length ? '🏆' : quizScore() >= 3 ? '🌟' : '💪' }}</p>
+            <h2 class="text-xl font-black text-blue-700">{{ quizScore() }}/{{ quizQuestions().length }}</h2>
+            <p class="mt-1 text-base font-bold text-slate-700">{{ getQuizMessage() }}</p>
+
+            <!-- Show wrong answers -->
+            <div class="mt-4 space-y-2 text-left">
+              @for (q of quizQuestions(); track $index) {
+                @if (q.selected !== q.correct) {
+                  <div class="rounded-xl bg-red-50 border border-red-200 p-3">
+                    <p class="text-xs font-bold text-red-700">{{ q.question }}</p>
+                    <p class="text-xs text-red-500 mt-1">Your answer: {{ q.options[q.selected!] }}</p>
+                    <p class="text-xs text-green-600 font-bold mt-0.5">Correct: {{ q.options[q.correct] }} ✓</p>
+                  </div>
+                }
+              }
+            </div>
+
+            <button (click)="resetQuiz()" class="mt-5 rounded-xl bg-blue-500 px-6 py-2.5 text-sm font-bold text-white hover:bg-blue-600 transition-all">
+              🔄 Try Again
+            </button>
+          </div>
+        }
+
+        @else if (quizQuestions().length > 0) {
+          <!-- Quiz Progress -->
+          <div class="mb-4 flex items-center justify-between">
+            <span class="text-xs font-bold text-blue-700">Question {{ quizCurrentIndex() + 1 }}/{{ quizQuestions().length }}</span>
+            <span class="text-xs font-bold text-green-600">Score: {{ quizScore() }} · +10 XP each</span>
+          </div>
+          <div class="h-2 w-full rounded-full bg-blue-100 overflow-hidden mb-5">
+            <div class="h-2 rounded-full bg-gradient-to-r from-blue-400 to-indigo-500 transition-all duration-500"
+              [style.width.%]="((quizCurrentIndex() + 1) / quizQuestions().length) * 100"></div>
+          </div>
+
+          <!-- Question Card -->
+          @if (quizQuestions()[quizCurrentIndex()]; as q) {
+            <div class="rounded-2xl border-2 border-blue-200 bg-white p-5 shadow-md">
+              <h3 class="text-base font-black text-slate-900 mb-4">{{ q.question }}</h3>
+
+              <div class="grid gap-2.5">
+                @for (option of q.options; track $index) {
+                  <button
+                    (click)="selectQuizAnswer($index)"
+                    class="w-full rounded-xl border-2 p-3.5 text-left text-sm font-semibold transition-all"
+                    [class]="q.selected === undefined
+                      ? 'border-slate-200 bg-slate-50 text-slate-700 hover:border-blue-300 hover:bg-blue-50 active:scale-[0.98]'
+                      : $index === q.correct
+                        ? 'border-green-400 bg-green-50 text-green-700'
+                        : $index === q.selected
+                          ? 'border-red-400 bg-red-50 text-red-700 animate-shake'
+                          : 'border-slate-200 bg-slate-50 text-slate-400'"
+                  >
+                    <span class="mr-2 text-xs font-bold">{{ ['A','B','C','D'][$index] }}.</span>
+                    {{ option }}
+                    @if (q.selected !== undefined && $index === q.correct) {
+                      <span class="float-right">✓</span>
+                    }
+                    @if (q.selected === $index && $index !== q.correct) {
+                      <span class="float-right">✗</span>
+                    }
+                  </button>
+                }
+              </div>
+            </div>
+          }
+        }
+      </div>
+    }
+
+    <!-- ==================== SPELLING TAB ==================== -->
+    @if (activeTab() === 'spelling') {
+      <div class="animate-fade-in">
+        @if (spellingFinished()) {
+          <div class="rounded-2xl bg-gradient-to-br from-purple-50 via-pink-50 to-rose-50 border-2 border-purple-300 px-6 py-8 text-center shadow-md animate-bounce-in">
+            <p class="text-5xl mb-3">{{ spellingScore() >= spellingTotal() * 0.8 ? '🏆' : '💪' }}</p>
+            <h2 class="text-xl font-black text-purple-700">{{ spellingScore() }}/{{ spellingTotal() }}</h2>
+            <p class="mt-1 text-sm font-semibold text-slate-700">
+              @if (spellingScore() === spellingTotal()) {
+                Perfect spelling! Shabash! 🎉
+              } @else if (spellingScore() >= spellingTotal() * 0.7) {
+                Great spelling! Keep it up! 🌟
+              } @else {
+                Keep practicing your spelling! 💪
+              }
+            </p>
+            <button (click)="resetSpelling()" class="mt-5 rounded-xl bg-purple-500 px-6 py-2.5 text-sm font-bold text-white hover:bg-purple-600 transition-all">
+              🔄 Practice Again
+            </button>
+          </div>
+        }
+
+        @else if (spellingWords().length > 0) {
+          @if (spellingWords()[spellingIndex()]; as word) {
+            <!-- Spelling Progress -->
+            <div class="mb-4 flex items-center justify-between">
+              <span class="text-xs font-bold text-purple-700">Word {{ spellingIndex() + 1 }}/{{ spellingWords().length }}</span>
+              <span class="text-xs font-bold text-green-600">Score: {{ spellingScore() }} · +15 XP each</span>
+            </div>
+            <div class="h-2 w-full rounded-full bg-purple-100 overflow-hidden mb-5">
+              <div class="h-2 rounded-full bg-gradient-to-r from-purple-400 to-pink-500 transition-all duration-500"
+                [style.width.%]="((spellingIndex() + 1) / spellingWords().length) * 100"></div>
+            </div>
+
+            <!-- Spelling Card -->
+            <div class="rounded-2xl border-2 border-purple-200 bg-white p-6 shadow-md text-center">
+              <p class="text-5xl mb-3">{{ word.emoji }}</p>
+              <p class="text-lg font-black text-slate-900">{{ word.meaning }}</p>
+              <p class="mt-1 text-sm text-purple-600 font-semibold">{{ word.native }} ({{ word.transliteration }})</p>
+
+              <div class="mt-5">
+                @if (spellingResult() === null) {
+                  <input
+                    type="text"
+                    [ngModel]="spellingInput()"
+                    (ngModelChange)="spellingInput.set($event)"
+                    (keyup.enter)="checkSpelling()"
+                    placeholder="Type the English word..."
+                    class="w-full rounded-xl border-2 border-purple-200 bg-purple-50 px-4 py-3 text-center text-lg font-bold text-slate-900 outline-none focus:border-purple-400 placeholder:text-slate-400"
+                    autofocus
+                  />
+                  <button
+                    (click)="checkSpelling()"
+                    class="mt-3 w-full rounded-xl bg-purple-500 px-5 py-3 text-sm font-bold text-white hover:bg-purple-600 transition-all active:scale-[0.97]"
+                  >
+                    Check Spelling ✏️
+                  </button>
+                }
+
+                @else if (spellingResult() === 'correct') {
+                  <div class="rounded-xl bg-green-50 border-2 border-green-300 p-4 animate-bounce-in">
+                    <p class="text-3xl mb-1">✅</p>
+                    <p class="text-base font-black text-green-700">Correct! +15 XP</p>
+                  </div>
+                  <button (click)="nextSpellingWord()" class="mt-3 w-full rounded-xl bg-green-500 px-5 py-3 text-sm font-bold text-white hover:bg-green-600">
+                    Next Word →
+                  </button>
+                }
+
+                @else if (spellingResult() === 'wrong') {
+                  <div class="rounded-xl bg-red-50 border-2 border-red-300 p-4 animate-shake">
+                    <p class="text-3xl mb-1">❌</p>
+                    <p class="text-sm font-bold text-red-600">Wrong! The correct spelling is:</p>
+                    <p class="mt-1 text-xl font-black text-green-700">{{ spellingCorrectWord() }}</p>
+                  </div>
+                  <button (click)="nextSpellingWord()" class="mt-3 w-full rounded-xl bg-orange-500 px-5 py-3 text-sm font-bold text-white hover:bg-orange-600">
+                    Next Word →
+                  </button>
+                }
+              </div>
+            </div>
+          }
+        }
+
+        @else {
+          <div class="rounded-2xl border border-purple-200 bg-white px-6 py-12 text-center shadow-sm">
+            <p class="text-4xl mb-3">✏️</p>
+            <p class="text-sm font-bold text-slate-700">No words to practice yet!</p>
+            <p class="mt-1 text-xs text-slate-500">Learn some words first in the Today tab</p>
+            <button (click)="setTab('today')" class="mt-4 rounded-xl bg-green-500 px-5 py-2 text-sm font-bold text-white hover:bg-green-600">
+              Go Learn Words
+            </button>
+          </div>
+        }
+      </div>
+    }
+
+    <!-- ==================== PRACTICE (FILL IN THE BLANK) TAB ==================== -->
+    @if (activeTab() === 'practice') {
+      <div class="animate-fade-in">
+        @if (fillBlankLoading()) {
+          <div class="rounded-2xl border border-teal-200 bg-white px-6 py-14 text-center shadow-md">
+            <div class="mx-auto mb-3 h-10 w-10 rounded-full border-4 border-teal-100 border-t-teal-500 animate-spin"></div>
+            <p class="text-base font-bold text-slate-900">Generating sentences...</p>
+          </div>
+        }
+
+        @else if (fillBlankFinished()) {
+          <div class="rounded-2xl bg-gradient-to-br from-teal-50 via-cyan-50 to-sky-50 border-2 border-teal-300 px-6 py-8 text-center shadow-md animate-bounce-in">
+            <p class="text-5xl mb-3">{{ fillBlankScore() >= fillBlankSentences().length * 0.8 ? '🏆' : '💪' }}</p>
+            <h2 class="text-xl font-black text-teal-700">{{ fillBlankScore() }}/{{ fillBlankSentences().length }}</h2>
+            <p class="mt-1 text-sm font-semibold text-slate-700">
+              @if (fillBlankScore() === fillBlankSentences().length) {
+                All correct! Amazing! 🎉
+              } @else if (fillBlankScore() >= fillBlankSentences().length * 0.7) {
+                Great practice! 🌟
+              } @else {
+                Keep practicing! 💪
+              }
+            </p>
+            <button (click)="resetFillBlank()" class="mt-5 rounded-xl bg-teal-500 px-6 py-2.5 text-sm font-bold text-white hover:bg-teal-600 transition-all">
+              🔄 Practice More
+            </button>
+          </div>
+        }
+
+        @else if (fillBlankSentences().length > 0) {
+          <!-- Progress -->
+          <div class="mb-4 flex items-center justify-between">
+            <span class="text-xs font-bold text-teal-700">Sentence {{ fillBlankIndex() + 1 }}/{{ fillBlankSentences().length }}</span>
+            <span class="text-xs font-bold text-green-600">Score: {{ fillBlankScore() }} · +10 XP each</span>
+          </div>
+          <div class="h-2 w-full rounded-full bg-teal-100 overflow-hidden mb-5">
+            <div class="h-2 rounded-full bg-gradient-to-r from-teal-400 to-cyan-500 transition-all duration-500"
+              [style.width.%]="((fillBlankIndex() + 1) / fillBlankSentences().length) * 100"></div>
+          </div>
+
+          @if (fillBlankSentences()[fillBlankIndex()]; as s) {
+            <div class="rounded-2xl border-2 border-teal-200 bg-white p-5 shadow-md">
+              <p class="text-base font-black text-slate-900 mb-4 leading-relaxed">{{ s.sentence }}</p>
+
+              <div class="grid grid-cols-2 gap-2.5">
+                @for (option of s.options; track $index) {
+                  <button
+                    (click)="selectFillBlankAnswer($index)"
+                    class="rounded-xl border-2 p-3 text-sm font-semibold transition-all text-center"
+                    [class]="s.selected === undefined
+                      ? 'border-slate-200 bg-slate-50 text-slate-700 hover:border-teal-300 hover:bg-teal-50 active:scale-[0.97]'
+                      : $index === s.correct
+                        ? 'border-green-400 bg-green-50 text-green-700'
+                        : $index === s.selected
+                          ? 'border-red-400 bg-red-50 text-red-700 animate-shake'
+                          : 'border-slate-200 bg-slate-50 text-slate-400'"
+                  >
+                    {{ option }}
+                    @if (s.selected !== undefined && $index === s.correct) {
+                      ✓
+                    }
+                    @if (s.selected === $index && $index !== s.correct) {
+                      ✗
+                    }
+                  </button>
+                }
+              </div>
+            </div>
+          }
+        }
+
+        @else {
+          <div class="rounded-2xl border border-teal-200 bg-white px-6 py-12 text-center shadow-sm">
+            <p class="text-4xl mb-3">📝</p>
+            <p class="text-sm font-bold text-slate-700">No practice sentences available</p>
+            <p class="mt-1 text-xs text-slate-500">Learn some words first!</p>
+            <button (click)="setTab('today')" class="mt-4 rounded-xl bg-green-500 px-5 py-2 text-sm font-bold text-white hover:bg-green-600">
+              Go Learn Words
+            </button>
+          </div>
+        }
+      </div>
     }
 
     <!-- ==================== PREVIOUS WORDS TAB ==================== -->

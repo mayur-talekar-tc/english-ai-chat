@@ -8,7 +8,7 @@
       </a>
 
       <!-- Desktop Nav -->
-      <div class="hidden md:flex items-center gap-8">
+      <div class="hidden md:flex items-center gap-6">
         <a routerLink="/" routerLinkActive="text-green-500" [routerLinkActiveOptions]="{ exact: true }"
            class="text-sm font-medium text-gray-600 hover:text-green-500 transition-colors">Home</a>
         <a routerLink="/learn" routerLinkActive="text-green-500"
@@ -21,10 +21,10 @@
            class="text-sm font-medium text-gray-600 hover:text-green-500 transition-colors">Voice</a>
       </div>
 
-      <!-- Desktop Auth -->
+      <!-- Desktop Auth + XP -->
       <div class="hidden md:flex items-center gap-3">
         @if (auth.isLoggedIn()) {
-          <span class="text-sm font-medium text-gray-700">{{ auth.currentUser()?.name }}</span>
+          <a routerLink="/profile" class="text-sm font-medium text-gray-700 hover:text-green-500 transition-colors cursor-pointer">{{ auth.currentUser()?.name }}</a>
           <button (click)="auth.logout()" class="text-sm font-medium text-gray-500 hover:text-red-500 px-4 py-2 transition-colors">Logout</button>
         } @else {
           <a routerLink="/login" class="text-sm font-medium text-gray-700 hover:text-green-500 px-4 py-2 transition-colors">Login</a>
@@ -33,17 +33,19 @@
       </div>
 
       <!-- Mobile Hamburger -->
-      <button (click)="toggleMenu()" class="md:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors">
-        @if (!mobileMenuOpen()) {
-          <svg class="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
-          </svg>
-        } @else {
-          <svg class="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-          </svg>
-        }
-      </button>
+      <div class="flex md:hidden items-center gap-2">
+        <button (click)="toggleMenu()" class="p-2 rounded-lg hover:bg-gray-100 transition-colors">
+          @if (!mobileMenuOpen()) {
+            <svg class="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+            </svg>
+          } @else {
+            <svg class="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          }
+        </button>
+      </div>
     </div>
   </div>
 
@@ -58,7 +60,13 @@
         <a routerLink="/voice" (click)="toggleMenu()" class="block text-sm font-medium text-gray-700 hover:text-green-500 py-2 transition-colors">Voice</a>
         <hr class="border-gray-100">
         @if (auth.isLoggedIn()) {
-          <span class="block text-sm font-medium text-gray-700 py-2">{{ auth.currentUser()?.name }}</span>
+          <a routerLink="/profile" (click)="toggleMenu()" class="flex items-center gap-2 py-2 hover:bg-green-50 rounded-lg px-2 -mx-2 transition-colors cursor-pointer">
+            <span class="text-lg">{{ progress.currentLevel().badge }}</span>
+            <div>
+              <span class="block text-sm font-bold text-gray-700">{{ auth.currentUser()?.name }}</span>
+              <span class="block text-xs text-green-600 font-semibold">{{ progress.totalXp() }} XP · {{ progress.currentLevel().name }}</span>
+            </div>
+          </a>
           <button (click)="auth.logout(); toggleMenu()" class="block w-full text-left text-sm font-medium text-red-500 py-2">Logout</button>
         } @else {
           <a routerLink="/login" (click)="toggleMenu()" class="block text-sm font-medium text-gray-700 py-2">Login</a>
@@ -68,3 +76,47 @@
     </div>
   }
 </nav>
+
+<!-- XP Animation -->
+@if (progress.xpAnimation(); as anim) {
+  <div class="fixed top-20 right-6 z-[100] animate-xp-float pointer-events-none">
+    <div class="rounded-full bg-gradient-to-r from-green-500 to-emerald-500 px-4 py-2 shadow-lg">
+      <span class="text-sm font-black text-white">+{{ anim.amount }} XP ⚡</span>
+    </div>
+  </div>
+}
+
+<!-- Level Up Animation -->
+@if (progress.levelUpAnimation()) {
+  <div class="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 animate-fade-in">
+    <div class="rounded-3xl bg-white px-10 py-8 text-center shadow-2xl animate-bounce-in">
+      <p class="text-6xl mb-3">{{ progress.currentLevel().badge }}</p>
+      <h2 class="text-2xl font-black text-green-700">Level Up! 🎉</h2>
+      <p class="mt-2 text-lg font-bold text-slate-700">{{ progress.currentLevel().name }}</p>
+      <p class="mt-1 text-sm text-slate-500">Keep going, you're amazing!</p>
+    </div>
+  </div>
+}
+
+<!-- Daily Login Reward Popup -->
+@if (progress.dailyLoginReward(); as reward) {
+  <div class="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 animate-fade-in">
+    <div class="rounded-3xl bg-white px-8 py-8 text-center shadow-2xl animate-bounce-in max-w-sm mx-4">
+      <p class="text-5xl mb-3">🎁</p>
+      <h2 class="text-xl font-black text-green-700">Daily Login Reward!</h2>
+      <div class="mt-3 rounded-xl bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 px-4 py-3">
+        <p class="text-2xl font-black text-green-600">+{{ reward.reward }} XP</p>
+      </div>
+      <p class="mt-3 text-sm font-semibold text-orange-500">🔥 {{ reward.streak }} day streak!</p>
+      @if (reward.streak >= 7) {
+        <p class="mt-1 text-xs text-purple-500 font-bold">🌟 Streak Bonus Active!</p>
+      }
+      <button
+        (click)="progress.dismissDailyLogin()"
+        class="mt-4 rounded-xl bg-green-500 px-6 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-green-600 transition-all"
+      >
+        Awesome! Let's Learn! 🚀
+      </button>
+    </div>
+  </div>
+}

@@ -5,6 +5,7 @@ import { Router } from '@angular/router';
 import { AUTH_API_URL } from '../shared/api';
 
 export interface User {
+  id?: number;
   name: string;
   email: string;
 }

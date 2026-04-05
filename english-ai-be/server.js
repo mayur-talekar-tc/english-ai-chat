@@ -13,6 +13,7 @@ app.use('/api/auth', require('./routes/auth.routes'));
 app.use('/api/lessons', require('./routes/lessons.routes'));
 app.use('/api/quiz', require('./routes/quiz.routes'));
 app.use('/api/ai', require('./routes/ai.routes'));
+app.use('/api/progress', require('./routes/progress.routes'));
 
 // TTS proxy - fetches Google Translate audio and sends to frontend (avoids CORS)
 app.get('/api/tts', async (req, res) => {
