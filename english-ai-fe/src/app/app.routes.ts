@@ -10,5 +10,6 @@ export const routes: Routes = [
 { path: 'profile', loadComponent: () => import('./pages/profile/profile').then(m => m.Profile) },
   { path: 'login', loadComponent: () => import('./pages/login/login').then(m => m.Login) },
   { path: 'register', loadComponent: () => import('./pages/register/register').then(m => m.Register) },
+  { path: 'onboarding', loadComponent: () => import('./pages/onboarding/onboarding').then(m => m.Onboarding) },
   { path: '**', redirectTo: '' },
 ];

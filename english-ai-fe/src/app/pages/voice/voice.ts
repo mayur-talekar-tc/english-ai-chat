@@ -20,7 +20,7 @@ export class Voice implements OnDestroy {
   transcript = signal('');
   feedback = signal('');
   translation = signal('');
-  selectedLanguage = signal('hi-IN');
+  selectedLanguage = signal(this.getSavedVoiceLanguage());
   practiceText = signal('');
   score = signal<number | null>(null);
 
@@ -71,9 +71,21 @@ export class Voice implements OnDestroy {
     'I love my country India',
   ];
 
+  private static readonly LANG_MAP: Record<string, string> = {
+    hindi: 'hi-IN', marathi: 'mr-IN', tamil: 'ta-IN', telugu: 'te-IN',
+    kannada: 'kn-IN', malayalam: 'ml-IN', punjabi: 'pa-IN', gujarati: 'gu-IN',
+    bengali: 'bn-IN', odia: 'or-IN', assamese: 'as-IN', urdu: 'ur-IN',
+    english: 'en-US',
+  };
+
+  private getSavedVoiceLanguage(): string {
+    const saved = localStorage.getItem('bhashaai_learn_language');
+    if (saved && Voice.LANG_MAP[saved]) return Voice.LANG_MAP[saved];
+    return 'hi-IN';
+  }
+
   constructor() {
     this.loadNewPrompt();
-    // Pre-load voices (Chrome loads them async)
     speechSynthesis.getVoices();
     speechSynthesis.onvoiceschanged = () => speechSynthesis.getVoices();
   }

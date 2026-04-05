@@ -26,12 +26,16 @@ export class AuthService {
 
   register(name: string, email: string, password: string) {
     this.error.set('');
-    this.http.post<{ success: boolean; user?: User; error?: string }>(`${AUTH_API_URL}/register`, { name, email, password })
+    this.http.post<{ success: boolean; user?: User; error?: string; isNewUser?: boolean }>(`${AUTH_API_URL}/register`, { name, email, password })
       .subscribe({
         next: (res) => {
           if (res.success && res.user) {
             this.setUser(res.user);
-            this.router.navigate(['/']);
+            if (res.isNewUser) {
+              this.router.navigate(['/onboarding']);
+            } else {
+              this.router.navigate(['/']);
+            }
           } else {
             this.error.set(res.error || 'Registration failed');
           }

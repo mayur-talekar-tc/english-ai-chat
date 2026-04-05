@@ -1,0 +1,152 @@
+<section class="min-h-[calc(100vh-4rem)] flex items-center justify-center py-8" style="background: linear-gradient(180deg, #f0fdf4 0%, #ecfdf5 38%, #f8fafc 100%);">
+  <div class="mx-auto max-w-md px-4 w-full">
+
+    <!-- Progress Dots -->
+    <div class="flex items-center justify-center gap-2 mb-8">
+      @for (s of [1,2,3]; track s) {
+        <div class="h-2.5 rounded-full transition-all duration-300"
+          [class]="step() >= s ? 'bg-green-500 w-10' : 'bg-slate-200 w-2.5'"></div>
+      }
+    </div>
+
+    <!-- ==================== STEP 1: Welcome ==================== -->
+    @if (step() === 1) {
+      <div class="rounded-2xl bg-white border border-green-200 p-8 shadow-lg text-center animate-fade-in">
+        <p class="text-6xl mb-4">🎉</p>
+        <h1 class="text-2xl font-black text-slate-900">Welcome to BhashaAI!</h1>
+        <p class="mt-2 text-sm text-slate-500">Namaste, <span class="font-bold text-green-600">{{ auth.currentUser()?.name }}</span>!</p>
+        <p class="mt-4 text-base text-slate-700">Let's set up your learning journey in just 2 steps.</p>
+
+        <div class="mt-6 grid grid-cols-3 gap-3">
+          <div class="rounded-xl bg-green-50 border border-green-200 p-3 text-center">
+            <p class="text-2xl">📚</p>
+            <p class="text-[10px] font-bold text-green-700 mt-1">Daily Words</p>
+          </div>
+          <div class="rounded-xl bg-blue-50 border border-blue-200 p-3 text-center">
+            <p class="text-2xl">🧠</p>
+            <p class="text-[10px] font-bold text-blue-700 mt-1">Quizzes</p>
+          </div>
+          <div class="rounded-xl bg-purple-50 border border-purple-200 p-3 text-center">
+            <p class="text-2xl">🎤</p>
+            <p class="text-[10px] font-bold text-purple-700 mt-1">Voice Practice</p>
+          </div>
+        </div>
+
+        <button
+          (click)="nextStep()"
+          class="mt-8 w-full rounded-xl bg-green-500 px-6 py-3.5 text-sm font-bold text-white shadow-md hover:bg-green-600 transition-all active:scale-[0.97]"
+        >
+          Let's Go! 🚀
+        </button>
+      </div>
+    }
+
+    <!-- ==================== STEP 2: Choose Language ==================== -->
+    @if (step() === 2) {
+      <div class="rounded-2xl bg-white border border-green-200 p-8 shadow-lg animate-fade-in">
+        <div class="text-center mb-6">
+          <p class="text-4xl mb-2">🌍</p>
+          <h2 class="text-xl font-black text-slate-900">Choose Your Language</h2>
+          <p class="mt-1 text-sm text-slate-500">Which language do you want to learn?</p>
+        </div>
+
+        <div class="grid grid-cols-3 gap-2 max-h-72 overflow-y-auto">
+          @for (lang of languages; track lang.code) {
+            <button
+              (click)="selectLanguage(lang.code)"
+              class="rounded-xl border-2 p-3 text-center transition-all active:scale-[0.95]"
+              [class]="selectedLanguage() === lang.code
+                ? 'border-green-500 bg-green-50 shadow-sm'
+                : 'border-slate-200 bg-white hover:border-green-300 hover:bg-green-50/50'"
+            >
+              <p class="text-xl">{{ lang.flag }}</p>
+              <p class="text-[11px] font-bold mt-1"
+                [class]="selectedLanguage() === lang.code ? 'text-green-700' : 'text-slate-700'">{{ lang.name }}</p>
+            </button>
+          }
+        </div>
+
+        <div class="mt-6 flex gap-3">
+          <button
+            (click)="prevStep()"
+            class="flex-1 rounded-xl border-2 border-slate-200 px-4 py-3 text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all"
+          >
+            ← Back
+          </button>
+          <button
+            (click)="nextStep()"
+            [disabled]="!selectedLanguage()"
+            class="flex-1 rounded-xl bg-green-500 px-4 py-3 text-sm font-bold text-white shadow-md hover:bg-green-600 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            Next →
+          </button>
+        </div>
+      </div>
+    }
+
+    <!-- ==================== STEP 3: Choose Level ==================== -->
+    @if (step() === 3) {
+      <div class="rounded-2xl bg-white border border-green-200 p-8 shadow-lg animate-fade-in">
+        <div class="text-center mb-6">
+          <p class="text-4xl mb-2">🎓</p>
+          <h2 class="text-xl font-black text-slate-900">Your Level</h2>
+          <p class="mt-1 text-sm text-slate-500">Choose what fits you best</p>
+        </div>
+
+        <div class="space-y-3">
+          <button
+            (click)="selectLevel('school')"
+            class="w-full rounded-xl border-2 p-5 text-left transition-all active:scale-[0.98]"
+            [class]="selectedLevel() === 'school'
+              ? 'border-green-500 bg-green-50 shadow-sm'
+              : 'border-slate-200 bg-white hover:border-green-300'"
+          >
+            <div class="flex items-center gap-4">
+              <span class="text-3xl">🎒</span>
+              <div>
+                <p class="text-base font-black" [class]="selectedLevel() === 'school' ? 'text-green-700' : 'text-slate-900'">School Student</p>
+                <p class="text-xs text-slate-500 mt-0.5">Simple everyday words - Animals, Fruits, Colors, Family</p>
+              </div>
+            </div>
+          </button>
+
+          <button
+            (click)="selectLevel('adults')"
+            class="w-full rounded-xl border-2 p-5 text-left transition-all active:scale-[0.98]"
+            [class]="selectedLevel() === 'adults'
+              ? 'border-green-500 bg-green-50 shadow-sm'
+              : 'border-slate-200 bg-white hover:border-green-300'"
+          >
+            <div class="flex items-center gap-4">
+              <span class="text-3xl">💼</span>
+              <div>
+                <p class="text-base font-black" [class]="selectedLevel() === 'adults' ? 'text-green-700' : 'text-slate-900'">Adult Learner</p>
+                <p class="text-xs text-slate-500 mt-0.5">Advanced words - Business, Technology, Travel, Health</p>
+              </div>
+            </div>
+          </button>
+        </div>
+
+        <div class="mt-6 flex gap-3">
+          <button
+            (click)="prevStep()"
+            class="flex-1 rounded-xl border-2 border-slate-200 px-4 py-3 text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all"
+          >
+            ← Back
+          </button>
+          <button
+            (click)="finish()"
+            [disabled]="!selectedLevel()"
+            class="flex-1 rounded-xl bg-green-500 px-4 py-3 text-sm font-bold text-white shadow-md hover:bg-green-600 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            Start Learning! 🎉
+          </button>
+        </div>
+
+        <!-- Welcome XP hint -->
+        <p class="mt-4 text-center text-xs text-green-600 font-semibold">🎁 You'll get +10 XP welcome bonus!</p>
+      </div>
+    }
+
+  </div>
+</section>

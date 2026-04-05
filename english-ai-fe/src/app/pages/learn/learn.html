@@ -14,14 +14,6 @@
             <option [value]="lang.code">{{ lang.flag }} {{ lang.name }}</option>
           }
         </select>
-        <select
-          [value]="level()"
-          (change)="onLevelChange($event)"
-          class="rounded-xl border border-green-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 shadow-sm outline-none focus:border-green-400"
-        >
-          <option value="school">🎒 School</option>
-          <option value="adults">💼 Adults</option>
-        </select>
       </div>
     </div>
 

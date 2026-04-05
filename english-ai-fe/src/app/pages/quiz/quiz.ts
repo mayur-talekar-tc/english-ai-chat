@@ -41,7 +41,7 @@ export class Quiz {
     { id: 'advanced', label: 'Advanced' },
   ];
 
-  selectedLanguage = signal('english');
+  selectedLanguage = signal(localStorage.getItem('bhashaai_learn_language') || 'hindi');
   selectedCategory = signal<QuizCategory>('vocabulary');
   selectedDifficulty = signal<QuizDifficulty>('beginner');
   questions = signal<QuizQuestion[]>([]);

@@ -742,14 +742,15 @@ Return ONLY valid JSON with this exact shape:
 }
 
 Rules:
-- "english" is the English word
-- "native" is the word in ${language} native script
-- "transliteration" is Romanized pronunciation
+- "english" is the English word (e.g. "Apple", "Dog", "Mother")
+- "native" is the FULL CORRECT word in ${language} native script. It must be a complete, properly spelled word in the ${language} script. Do NOT use abbreviations or single characters. For example in Hindi: "सेब" not "स", in Nepali: "स्याउ" not "स", in Marathi: "सफरचंद" not "स"
+- "transliteration" is the full Romanized pronunciation (e.g. "Seb", "Syaau", "Safarchand")
 - "meaning" is a simple English meaning (4-8 words)
 - "example" is a simple English sentence using the word
 - "emoji" is a single emoji that represents the word
 - "category" must be one of: ${categoryList}
 - All 10 words MUST be unique and from different categories
+- IMPORTANT: Double-check every "native" word is the correct ${language} translation, fully spelled in ${language} script
 - Return ONLY valid JSON, no markdown, no code fences`;
 
       const text = await generateModelText(prompt);

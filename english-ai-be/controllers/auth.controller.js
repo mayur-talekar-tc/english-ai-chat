@@ -67,6 +67,7 @@ const register = async (req, res) => {
       success: true,
       token,
       user: serializeUser(user),
+      isNewUser: true,
     });
   } catch (error) {
     console.error('Register failed:', error);
