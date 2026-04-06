@@ -1,125 +1,166 @@
-<!-- Hero Section -->
-<section class="relative overflow-hidden">
-  <!-- Background decoration -->
-  <div class="absolute inset-0 -z-10">
-    <div class="absolute top-20 left-10 w-72 h-72 bg-green-100 rounded-full blur-3xl opacity-50"></div>
-    <div class="absolute bottom-20 right-10 w-96 h-96 bg-green-50 rounded-full blur-3xl opacity-60"></div>
+<!-- ===== HERO SECTION ===== -->
+<section class="hero-bg relative overflow-hidden min-h-[90vh] flex items-center">
+  <!-- Decorative blobs -->
+  <div class="absolute inset-0 -z-10 overflow-hidden">
+    <div class="absolute -top-10 -left-10 w-[500px] h-[500px] bg-green-300 rounded-full blur-[140px] opacity-25"></div>
+    <div class="absolute top-1/3 -right-20 w-[400px] h-[400px] bg-emerald-200 rounded-full blur-[120px] opacity-20"></div>
+    <div class="absolute -bottom-20 left-1/3 w-[450px] h-[450px] bg-green-100 rounded-full blur-[130px] opacity-30"></div>
   </div>
 
-  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-24">
+  <!-- Floating language pills -->
+  <span class="absolute top-[18%] left-[7%] bg-white/90 backdrop-blur-md shadow-lg shadow-green-500/5 text-sm px-4 py-2 rounded-full animate-float hidden lg:flex items-center gap-2 border border-green-100/60 font-medium text-gray-700">{{ heroLanguages[0].flag }} {{ heroLanguages[0].name }}</span>
+  <span class="absolute top-[14%] right-[9%] bg-white/90 backdrop-blur-md shadow-lg shadow-blue-500/5 text-sm px-4 py-2 rounded-full animate-float-delayed hidden lg:flex items-center gap-2 border border-blue-100/60 font-medium text-gray-700">{{ heroLanguages[1].flag }} {{ heroLanguages[1].name }}</span>
+  <span class="absolute top-[48%] left-[3%] bg-white/90 backdrop-blur-md shadow-lg text-sm px-4 py-2 rounded-full animate-float-slow hidden lg:flex items-center gap-2 border border-purple-100/60 font-medium text-gray-700">{{ heroLanguages[2].flag }} {{ heroLanguages[2].name }}</span>
+  <span class="absolute top-[52%] right-[4%] bg-white/90 backdrop-blur-md shadow-lg text-sm px-4 py-2 rounded-full animate-float hidden lg:flex items-center gap-2 border border-orange-100/60 font-medium text-gray-700">{{ heroLanguages[3].flag }} {{ heroLanguages[3].name }}</span>
+  <span class="absolute bottom-[22%] left-[11%] bg-white/90 backdrop-blur-md shadow-lg text-sm px-4 py-2 rounded-full animate-float-delayed hidden xl:flex items-center gap-2 border border-pink-100/60 font-medium text-gray-700">{{ heroLanguages[4].flag }} {{ heroLanguages[4].name }}</span>
+  <span class="absolute bottom-[28%] right-[11%] bg-white/90 backdrop-blur-md shadow-lg text-sm px-4 py-2 rounded-full animate-float-slow hidden xl:flex items-center gap-2 border border-green-100/60 font-medium text-gray-700">{{ heroLanguages[5].flag }} {{ heroLanguages[5].name }}</span>
+
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 w-full">
     <div class="text-center max-w-4xl mx-auto">
-      <!-- Floating language pills -->
-      <div class="relative mb-8">
-        <span class="absolute -top-4 left-[10%] bg-white shadow-md text-sm px-3 py-1.5 rounded-full animate-float hidden lg:block">{{ heroLanguages[0].flag }} {{ heroLanguages[0].name }}</span>
-        <span class="absolute -top-2 right-[12%] bg-white shadow-md text-sm px-3 py-1.5 rounded-full animate-float-delayed hidden lg:block">{{ heroLanguages[1].flag }} {{ heroLanguages[1].name }}</span>
-        <span class="absolute top-16 left-[5%] bg-white shadow-md text-sm px-3 py-1.5 rounded-full animate-float-slow hidden lg:block">{{ heroLanguages[2].flag }} {{ heroLanguages[2].name }}</span>
-        <span class="absolute top-20 right-[7%] bg-white shadow-md text-sm px-3 py-1.5 rounded-full animate-float hidden lg:block">{{ heroLanguages[3].flag }} {{ heroLanguages[3].name }}</span>
-        <span class="absolute top-40 left-[8%] bg-white shadow-md text-sm px-3 py-1.5 rounded-full animate-float-delayed hidden lg:block">{{ heroLanguages[4].flag }} {{ heroLanguages[4].name }}</span>
-        <span class="absolute top-36 right-[10%] bg-white shadow-md text-sm px-3 py-1.5 rounded-full animate-float-slow hidden lg:block">{{ heroLanguages[5].flag }} {{ heroLanguages[5].name }}</span>
-      </div>
 
-      <h1 class="text-5xl sm:text-6xl lg:text-7xl font-extrabold text-gray-900 leading-tight tracking-tight">
-        Learn Any Language<br>
-        with <span class="gradient-text">AI</span>
+      <h1 class="slide-up text-5xl sm:text-6xl lg:text-[4.5rem] font-extrabold text-gray-900 leading-[1.08] tracking-tight">
+        Master Any Language<br>
+        with <span class="gradient-text">BhashaAI</span>
       </h1>
-      <p class="mt-6 text-lg sm:text-xl text-gray-500 max-w-2xl mx-auto leading-relaxed">
-        Master any language naturally through AI-powered conversations, personalized lessons, and interactive practice.
+
+      <p class="slide-up slide-up-d1 mt-7 text-lg sm:text-xl text-gray-500 max-w-2xl mx-auto leading-relaxed">
+        Learn 27+ languages through conversations, daily vocabulary, quizzes, and voice practice — all powered by AI.
       </p>
-      <div class="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
-        <a routerLink="/chat" class="w-full sm:w-auto bg-green-500 hover:bg-green-600 text-white px-8 py-3.5 rounded-full font-medium text-base transition-all shadow-lg shadow-green-500/25 hover:shadow-xl hover:shadow-green-500/30 hover:-translate-y-0.5">
-          Start Learning
+
+      <!-- CTA buttons -->
+      <div class="slide-up slide-up-d2 mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
+        <a routerLink="/learn" class="cta-glow w-full sm:w-auto bg-green-500 hover:bg-green-600 text-white px-10 py-4 rounded-full font-semibold text-base transition-all shadow-lg shadow-green-500/25 hover:shadow-xl hover:shadow-green-500/30 hover:-translate-y-1">
+          Start Learning →
         </a>
-        <a routerLink="/learn" class="w-full sm:w-auto border border-gray-200 hover:border-green-500 text-gray-700 hover:text-green-500 px-8 py-3.5 rounded-full font-medium text-base transition-all">
-          Explore Courses
+        <a routerLink="/quiz" class="w-full sm:w-auto bg-white border-2 border-gray-200 hover:border-green-400 text-gray-700 hover:text-green-600 px-10 py-4 rounded-full font-semibold text-base transition-all hover:-translate-y-0.5 shadow-sm">
+          Try a Quiz
         </a>
+      </div>
+
+      <!-- Inline stats -->
+      <div class="slide-up slide-up-d3 mt-12 inline-flex items-center gap-5 sm:gap-8 bg-white/70 backdrop-blur-sm border border-gray-100 rounded-full px-6 sm:px-8 py-3 shadow-sm">
+        <div class="text-center">
+          <p class="text-lg sm:text-xl font-extrabold text-gray-900">27+</p>
+          <p class="text-[11px] text-gray-400 font-medium">Languages</p>
+        </div>
+        <div class="w-px h-8 bg-gray-200"></div>
+        <div class="text-center">
+          <p class="text-lg sm:text-xl font-extrabold text-gray-900">1M+</p>
+          <p class="text-[11px] text-gray-400 font-medium">Learners</p>
+        </div>
+        <div class="w-px h-8 bg-gray-200"></div>
+        <div class="text-center flex items-center gap-1">
+          <p class="text-lg sm:text-xl font-extrabold text-gray-900">4.9</p>
+          <span class="text-yellow-400 text-sm">★</span>
+        </div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- Stats Row -->
-<section class="border-y border-gray-100 bg-white">
-  <div class="max-w-5xl mx-auto px-4 py-12">
-    <div class="grid grid-cols-3 gap-8 text-center">
-      <div>
-        <p class="text-3xl sm:text-4xl font-bold text-gray-900">50+</p>
-        <p class="text-sm text-gray-500 mt-1">Languages</p>
-      </div>
-      <div>
-        <p class="text-3xl sm:text-4xl font-bold text-gray-900">1M+</p>
-        <p class="text-sm text-gray-500 mt-1">Learners</p>
-      </div>
-      <div>
-        <p class="text-3xl sm:text-4xl font-bold text-gray-900">4.9</p>
-        <p class="text-sm text-gray-500 mt-1">Rating</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- Features Grid -->
-<section class="py-20 bg-white">
+<!-- ===== FEATURES GRID ===== -->
+<section class="py-24 bg-white">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-    <div class="text-center mb-14">
-      <h2 class="text-3xl sm:text-4xl font-bold text-gray-900">Everything you need to <span class="gradient-text">learn faster</span></h2>
-      <p class="mt-4 text-gray-500 max-w-xl mx-auto">Powered by advanced AI to give you a personalized, immersive learning experience.</p>
+    <div class="text-center mb-16">
+      <h2 class="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-gray-900">Everything you need to<br><span class="gradient-text">learn faster</span></h2>
+      <p class="mt-4 text-gray-500 max-w-xl mx-auto text-lg">Personalized, immersive, and built for how you actually learn.</p>
     </div>
+
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
       @for (feature of features; track feature.title) {
-        <div class="group bg-gray-50 hover:bg-white rounded-2xl p-8 transition-all hover:shadow-xl hover:shadow-gray-100 border border-transparent hover:border-gray-100">
-          <span class="text-4xl block mb-4">{{ feature.icon }}</span>
-          <h3 class="text-lg font-semibold text-gray-900 mb-2">{{ feature.title }}</h3>
-          <p class="text-sm text-gray-500 leading-relaxed">{{ feature.description }}</p>
+        <a
+          [routerLink]="feature.link"
+          class="feature-card group rounded-3xl p-8 border-2 border-gray-100 bg-white cursor-pointer block"
+        >
+          <div
+            class="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl mb-5 transition-transform group-hover:scale-110"
+            [class]="feature.color === 'green' ? 'bg-green-100'
+              : feature.color === 'blue' ? 'bg-blue-100'
+              : feature.color === 'purple' ? 'bg-purple-100'
+              : 'bg-orange-100'"
+          >{{ feature.icon }}</div>
+          <h3 class="text-xl font-bold text-gray-900 mb-2 group-hover:text-green-600 transition-colors">{{ feature.title }}</h3>
+          <p class="text-gray-500 leading-relaxed">{{ feature.description }}</p>
+          <div class="mt-4 flex items-center gap-1 text-sm font-semibold text-green-600 opacity-0 group-hover:opacity-100 transition-opacity">
+            Try now
+            <svg class="w-4 h-4 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+          </div>
+        </a>
+      }
+    </div>
+  </div>
+</section>
+
+<!-- ===== HOW IT WORKS ===== -->
+<section class="py-24 bg-gray-50">
+  <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="text-center mb-16">
+      <h2 class="text-3xl sm:text-4xl font-extrabold text-gray-900">Start learning in <span class="gradient-text">4 simple steps</span></h2>
+    </div>
+
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-8">
+      @for (step of steps; track step.num; let i = $index) {
+        <div class="text-center relative">
+          @if (i < 3) {
+            <div class="step-line hidden lg:block"></div>
+          }
+          <div class="w-12 h-12 rounded-full bg-green-500 text-white font-bold text-lg flex items-center justify-center mx-auto mb-4 shadow-lg shadow-green-500/30">{{ step.num }}</div>
+          <div class="text-3xl mb-3">{{ step.icon }}</div>
+          <h4 class="font-bold text-gray-900 text-base">{{ step.title }}</h4>
+          <p class="text-sm text-gray-500 mt-1">{{ step.desc }}</p>
         </div>
       }
     </div>
   </div>
 </section>
 
-<!-- Language Cards -->
-<section class="py-20 bg-gray-50">
+<!-- ===== INDIAN LANGUAGES ===== -->
+<section class="py-24 bg-white">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-    <div class="text-center mb-10">
-      <h2 class="text-3xl sm:text-4xl font-bold text-gray-900">Indian Languages, Front and Center</h2>
-      <p class="mt-4 text-gray-500">Learn across India’s major languages with AI chat, vocabulary, and quiz practice built into the same experience.</p>
+    <div class="text-center mb-12">
+      <h2 class="text-3xl sm:text-4xl font-extrabold text-gray-900">Indian Languages, <span class="gradient-text">Front and Center</span></h2>
+      <p class="mt-4 text-gray-500 max-w-xl mx-auto">22 Indian languages with AI chat, vocabulary, and quiz practice.</p>
     </div>
 
-    <div class="rounded-3xl bg-white p-6 shadow-sm border border-gray-100 mb-8">
-      <div class="flex items-center justify-between gap-4 mb-5">
-        <div>
-          <h3 class="text-xl font-bold text-gray-900">Indian Language Spotlight</h3>
-          <p class="text-sm text-gray-500 mt-1">22 Indian languages available across BhashaAI flows.</p>
+    <div class="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-4">
+      @for (lang of indianLanguages; track lang.code) {
+        <div class="lang-card rounded-2xl border border-gray-100 bg-gradient-to-br from-white to-green-50/40 p-5 text-center transition-all hover:-translate-y-2 hover:border-green-300 hover:shadow-xl hover:shadow-green-500/10 cursor-default">
+          <span class="text-3xl block mb-2">{{ lang.flag }}</span>
+          <h4 class="font-bold text-gray-900 text-sm">{{ lang.name }}</h4>
+          <p class="text-xs text-gray-400 mt-1">{{ lang.learners }}</p>
         </div>
-        <a routerLink="/learn" class="text-sm font-semibold text-green-600 hover:text-green-700">Explore vocabulary</a>
-      </div>
-
-      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
-        @for (lang of indianLanguages; track lang.code) {
-          <div class="rounded-2xl border border-gray-100 bg-gradient-to-br from-white to-green-50/50 p-5 text-center transition-all hover:-translate-y-1 hover:border-green-200 hover:shadow-lg">
-            <span class="text-3xl block mb-3">{{ lang.flag }}</span>
-            <h4 class="font-semibold text-gray-900 text-sm">{{ lang.name }}</h4>
-            <p class="text-xs text-gray-400 mt-1">{{ lang.learners }} learners</p>
-          </div>
-        }
-      </div>
+      }
     </div>
 
+    <div class="text-center mt-10">
+      <a routerLink="/learn" class="inline-flex items-center gap-2 text-green-600 font-semibold hover:text-green-700 transition">
+        Explore all languages
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+      </a>
+    </div>
   </div>
 </section>
 
-<!-- CTA Banner -->
+<!-- ===== CTA BANNER ===== -->
 <section class="py-20">
   <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-    <div class="bg-green-500 rounded-3xl px-8 sm:px-16 py-14 text-center relative overflow-hidden">
-      <div class="absolute inset-0 bg-gradient-to-br from-green-400 to-green-600"></div>
-      <div class="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2"></div>
-      <div class="absolute bottom-0 left-0 w-48 h-48 bg-white/10 rounded-full translate-y-1/2 -translate-x-1/2"></div>
-      <div class="relative z-10">
-        <h2 class="text-3xl sm:text-4xl font-bold text-white mb-4">Your Language Journey Starts Here</h2>
-        <p class="text-green-100 text-lg mb-8 max-w-lg mx-auto">Learn 30 new words daily, practice with AI chat, and master English in any Indian language at your own pace.</p>
-        <a routerLink="/learn" class="inline-block bg-white text-green-600 px-8 py-3.5 rounded-full font-semibold text-base hover:shadow-xl transition-all hover:-translate-y-0.5">
-          Start Learning
-        </a>
+    <div class="relative rounded-[2rem] overflow-hidden">
+      <div class="absolute inset-0 bg-gradient-to-br from-green-500 via-green-500 to-emerald-600"></div>
+      <div class="absolute top-0 right-0 w-72 h-72 bg-white/10 rounded-full -translate-y-1/3 translate-x-1/3"></div>
+      <div class="absolute bottom-0 left-0 w-56 h-56 bg-white/10 rounded-full translate-y-1/3 -translate-x-1/3"></div>
+      <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-white/5 rounded-full"></div>
+
+      <div class="relative z-10 px-8 sm:px-16 py-16 text-center">
+        <h2 class="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white mb-4 leading-tight">Your Language Journey<br>Starts Today</h2>
+        <p class="text-green-100 text-lg mb-8 max-w-lg mx-auto">Learn new words daily, practice with AI chat, and master any language at your own pace.</p>
+        <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+          <a routerLink="/learn" class="w-full sm:w-auto bg-white text-green-600 px-10 py-4 rounded-full font-bold text-base hover:shadow-2xl transition-all hover:-translate-y-1 shadow-lg">
+            Start Learning
+          </a>
+          <a routerLink="/chat" class="w-full sm:w-auto border-2 border-white/30 text-white px-10 py-4 rounded-full font-semibold text-base hover:bg-white/10 transition-all backdrop-blur-sm">
+            Chat with AI Tutor
+          </a>
+        </div>
       </div>
     </div>
   </div>
