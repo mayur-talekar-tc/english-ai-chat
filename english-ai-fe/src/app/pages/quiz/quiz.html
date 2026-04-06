@@ -1,273 +1,234 @@
-<section class="quiz-shell min-h-[calc(100vh-4rem)] py-12">
-  <div class="mx-auto max-w-5xl px-4 sm:px-6">
-    <div class="mb-8 flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
-      <div>
-        <p class="mb-2 text-sm font-semibold uppercase tracking-[0.28em] text-emerald-200/80">BhashaAI Quiz Arena</p>
-        <h1 class="text-4xl font-black tracking-tight text-white sm:text-5xl">AI quizzes for every Indian language journey</h1>
-        <p class="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
-          Generate a fresh 5-question round by language, category, and difficulty. Review the explanation after every answer and keep your streak alive.
-        </p>
-      </div>
+<!-- Confetti -->
+@for (p of confetti(); track $index) {
+  <div class="confetti" [style.left]="p.left" [style.background]="p.color" [style.animation-delay]="p.delay"></div>
+}
 
-      <div class="grid grid-cols-3 gap-3 sm:min-w-[360px]">
-        <div class="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur">
-          <p class="text-[11px] uppercase tracking-[0.2em] text-slate-400">XP</p>
-          <p class="mt-1 text-2xl font-bold text-white">{{ xp() }}</p>
-        </div>
-        <div class="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur">
-          <p class="text-[11px] uppercase tracking-[0.2em] text-slate-400">Streak</p>
-          <p class="mt-1 text-2xl font-bold text-white">{{ currentStreak() }}</p>
-        </div>
-        <div class="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur">
-          <p class="text-[11px] uppercase tracking-[0.2em] text-slate-400">Best</p>
-          <p class="mt-1 text-2xl font-bold text-white">{{ bestStreak() }}</p>
-        </div>
-      </div>
-    </div>
+<section class="min-h-[calc(100vh-4rem)] bg-white py-10">
+  <div class="mx-auto max-w-2xl px-4">
 
-    <div class="mb-8 rounded-[2rem] border border-white/10 bg-slate-950/60 p-5 shadow-2xl shadow-slate-950/30 backdrop-blur">
-      <div class="grid gap-4 lg:grid-cols-[1.3fr_1fr]">
-        <div>
-          <label class="mb-2 block text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Language</label>
+    <!-- ===== LANGUAGE SELECT SCREEN ===== -->
+    @if (!started()) {
+      <div class="text-center fade-in">
+        <div class="text-6xl mb-4">🎯</div>
+        <h1 class="text-3xl font-extrabold text-gray-900">Language Quiz</h1>
+        <p class="mt-2 text-gray-500">Pick a language to learn and test yourself!</p>
+
+        <div class="mt-8 max-w-sm mx-auto text-left">
+          <label class="block text-sm font-semibold text-gray-700 mb-2">I want to learn</label>
           <select
             [value]="selectedLanguage()"
             (change)="onLanguageChange($event)"
-            class="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-white outline-none transition focus:border-emerald-300/60"
+            class="w-full rounded-xl border-2 border-gray-200 bg-white px-4 py-3.5 text-base font-medium text-gray-900 outline-none transition focus:border-green-500"
           >
-            @for (language of languages; track language.code) {
-              <option class="bg-slate-900 text-white" [value]="language.code">{{ language.flag }} {{ language.name }}</option>
+            @for (lang of languages; track lang.code) {
+              <option [value]="lang.code">{{ lang.flag }} {{ lang.name }}</option>
             }
           </select>
         </div>
 
-        <div>
-          <label class="mb-2 block text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Difficulty</label>
-          <select
-            [value]="selectedDifficulty()"
-            (change)="onDifficultyChange($event)"
-            class="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-white outline-none transition focus:border-emerald-300/60"
-          >
-            @for (difficulty of difficulties; track difficulty.id) {
-              <option class="bg-slate-900 text-white" [value]="difficulty.id">{{ difficulty.label }}</option>
-            }
-          </select>
-        </div>
-      </div>
-
-      <div class="mt-5 flex flex-wrap gap-3">
-        @for (category of categories; track category.id) {
-          <button
-            (click)="onCategoryChange(category.id)"
-            class="rounded-2xl border px-4 py-3 text-left transition-all"
-            [class]="selectedCategory() === category.id
-              ? 'border-emerald-300 bg-emerald-400/15 text-white shadow-lg shadow-emerald-900/20'
-              : 'border-white/10 bg-white/5 text-slate-300 hover:border-emerald-300/30 hover:bg-emerald-400/8 hover:text-white'"
-          >
-            <p class="text-sm font-semibold">{{ category.label }}</p>
-            <p class="mt-1 text-xs text-current/70">{{ category.description }}</p>
-          </button>
-        }
-      </div>
-    </div>
-
-    @if (isLoading()) {
-      <div class="rounded-[2rem] border border-white/10 bg-slate-950/60 px-8 py-14 text-center text-slate-300 backdrop-blur">
-        <div class="mx-auto mb-4 h-12 w-12 rounded-full border-4 border-white/10 border-t-emerald-300 animate-spin"></div>
-        <p class="text-lg font-semibold text-white">Generating your quiz...</p>
-        <p class="mt-2 text-sm">Building 5 fresh {{ selectedDifficulty() }} {{ selectedCategory() }} questions for {{ getSelectedLanguageLabel() }}.</p>
-      </div>
-    } @else if (error()) {
-      <div class="rounded-[2rem] border border-rose-400/30 bg-rose-500/10 px-8 py-10 text-center">
-        <p class="text-lg font-semibold text-white">{{ error() }}</p>
         <button
-          (click)="loadQuiz()"
-          class="mt-4 rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-emerald-100"
+          (click)="startQuiz()"
+          class="mt-8 rounded-full bg-green-500 px-10 py-3.5 text-base font-semibold text-white shadow-lg shadow-green-500/25 transition hover:bg-green-600 hover:-translate-y-0.5"
         >
-          Try Again
+          Start Quiz
         </button>
-      </div>
-    } @else if (!quizComplete()) {
-      @if (currentQuestion(); as question) {
-        <div class="mb-6 flex flex-col gap-3 rounded-[2rem] border border-white/10 bg-white/5 p-5 backdrop-blur md:flex-row md:items-center md:justify-between">
-          <div>
-            <p class="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Round Progress</p>
-            <p class="mt-2 text-lg font-semibold text-white">
-              Question {{ currentIndex() + 1 }} of {{ questions().length }}
-            </p>
-            <p class="mt-1 text-sm text-slate-300">{{ getSelectedLanguageLabel() }} • {{ selectedDifficulty() }} • {{ selectedCategory() }}</p>
-          </div>
 
-          <div class="min-w-[220px]">
-            <div class="mb-2 flex items-center justify-between text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
-              <span>Completion</span>
-              <span>{{ progress() | number:'1.0-0' }}%</span>
-            </div>
-            <div class="h-3 overflow-hidden rounded-full bg-white/10">
-              <div class="h-full rounded-full bg-gradient-to-r from-emerald-300 via-cyan-300 to-sky-400 transition-all duration-500" [style.width.%]="progress()"></div>
-            </div>
+        <p class="mt-4 text-sm text-gray-400">30 questions &middot; 30 seconds each</p>
+      </div>
+
+    <!-- ===== RESULTS SCREEN ===== -->
+    } @else if (finished()) {
+      <div class="text-center fade-in">
+        <div class="text-6xl mb-2">{{ scorePercent() >= 70 ? '🎉' : '📚' }}</div>
+        <h2 class="text-3xl font-extrabold text-gray-900">{{ score() }}/{{ TOTAL }}</h2>
+        <p class="mt-2 text-lg text-gray-500">{{ resultMessage() }}</p>
+
+        <!-- Score bar -->
+        <div class="mt-6 mx-auto max-w-xs">
+          <div class="h-4 rounded-full bg-gray-100 overflow-hidden">
+            <div
+              class="h-full rounded-full transition-all duration-700"
+              [class]="scorePercent() >= 70 ? 'bg-green-500' : scorePercent() >= 50 ? 'bg-yellow-400' : 'bg-red-400'"
+              [style.width.%]="scorePercent()"
+            ></div>
+          </div>
+          <p class="mt-2 text-sm font-semibold text-gray-500">{{ scorePercent() }}% accuracy</p>
+        </div>
+
+        <!-- Stats -->
+        <div class="mt-6 grid grid-cols-3 gap-3">
+          <div class="rounded-xl border border-green-200 bg-green-50 p-4">
+            <p class="text-xs font-semibold text-green-600 uppercase">Correct</p>
+            <p class="mt-1 text-2xl font-bold text-gray-900">{{ score() }}</p>
+          </div>
+          <div class="rounded-xl border border-red-200 bg-red-50 p-4">
+            <p class="text-xs font-semibold text-red-500 uppercase">Wrong</p>
+            <p class="mt-1 text-2xl font-bold text-gray-900">{{ TOTAL - score() }}</p>
+          </div>
+          <div class="rounded-xl border border-blue-200 bg-blue-50 p-4">
+            <p class="text-xs font-semibold text-blue-600 uppercase">Language</p>
+            <p class="mt-1 text-lg font-bold text-gray-900">{{ languageLabel() }}</p>
           </div>
         </div>
 
-        <div class="quiz-card mb-6 rounded-[2rem] border border-white/10 bg-slate-950/70 p-6 shadow-2xl shadow-slate-950/30 backdrop-blur sm:p-8" [class.quiz-card-enter]="cardAnimating()">
-          <div class="mb-6 flex items-start justify-between gap-4">
-            <div>
-              <span class="inline-flex rounded-full border border-cyan-300/30 bg-cyan-400/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-cyan-200">
-                {{ selectedCategory() }}
-              </span>
-              <h2 class="mt-4 text-2xl font-bold leading-tight text-white sm:text-3xl">{{ question.question }}</h2>
-            </div>
+        <!-- Buttons -->
+        <div class="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
+          <button
+            (click)="retryQuiz()"
+            class="rounded-full bg-green-500 px-8 py-3 text-sm font-semibold text-white shadow-md shadow-green-500/20 transition hover:bg-green-600"
+          >
+            Play Again
+          </button>
+          <button
+            (click)="goToSelect()"
+            class="rounded-full border-2 border-gray-200 px-8 py-3 text-sm font-semibold text-gray-700 transition hover:border-green-400"
+          >
+            Change Language
+          </button>
+        </div>
+      </div>
 
-            <div class="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-right">
-              <p class="text-[11px] uppercase tracking-[0.22em] text-slate-400">Score</p>
-              <p class="mt-1 text-2xl font-bold text-white">{{ score() }}/{{ questions().length }}</p>
+    <!-- ===== QUIZ SCREEN ===== -->
+    } @else {
+
+      <!-- Top bar: score + question number -->
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <p class="text-sm font-semibold text-gray-400 uppercase tracking-wide">Learning {{ languageLabel() }}</p>
+          <p class="text-lg font-bold text-gray-900">{{ questionNum() + 1 }} / {{ TOTAL }}</p>
+        </div>
+        <div class="rounded-xl border border-green-200 bg-green-50 px-4 py-2 text-center">
+          <p class="text-xs font-semibold text-green-600 uppercase">Score</p>
+          <p class="text-xl font-bold text-gray-900">{{ score() }}</p>
+        </div>
+      </div>
+
+      <!-- Progress bar -->
+      <div class="h-2 rounded-full bg-gray-100 mb-6 overflow-hidden">
+        <div
+          class="h-full rounded-full bg-green-500 transition-all duration-300"
+          [style.width.%]="((questionNum() + 1) / TOTAL) * 100"
+        ></div>
+      </div>
+
+      <!-- Loading -->
+      @if (loading()) {
+        <div class="rounded-2xl border border-gray-200 bg-white p-12 text-center shadow-sm fade-in">
+          <div class="mx-auto mb-4 h-10 w-10 rounded-full border-4 border-gray-200 border-t-green-500 animate-spin"></div>
+          <p class="text-gray-600 font-medium">Loading question...</p>
+        </div>
+
+      <!-- Error -->
+      } @else if (error()) {
+        <div class="rounded-2xl border border-red-200 bg-red-50 p-8 text-center">
+          <p class="text-gray-900 font-semibold">{{ error() }}</p>
+          <button
+            (click)="loadQuestion()"
+            class="mt-4 rounded-full bg-green-500 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-green-600"
+          >
+            Retry
+          </button>
+        </div>
+
+      <!-- Question -->
+      } @else if (question(); as q) {
+        <div class="rounded-2xl border border-gray-200 bg-white shadow-sm fade-in overflow-hidden">
+
+          <!-- Display area: English word/sentence shown BIG -->
+          <div class="bg-gray-50 px-6 py-8 text-center border-b border-gray-200">
+            <div class="flex items-center justify-center gap-4">
+              <div class="flex-1">
+                @if (q.question_type === 'fill_blank') {
+                  <p class="text-xs font-semibold text-green-600 uppercase tracking-wide mb-2">Fill in the blank</p>
+                } @else if (q.question_type === 'sentence') {
+                  <p class="text-xs font-semibold text-green-600 uppercase tracking-wide mb-2">Translate this sentence</p>
+                } @else {
+                  <p class="text-xs font-semibold text-green-600 uppercase tracking-wide mb-2">What is this in {{ languageLabel() }}?</p>
+                }
+                <h2 class="text-3xl sm:text-4xl font-extrabold text-gray-900 leading-tight">{{ q.display }}</h2>
+              </div>
+
+              <!-- Timer circle -->
+              <div class="flex-shrink-0" [class.pulse]="timer() <= 5 && !answered()">
+                <svg width="64" height="64" viewBox="0 0 80 80">
+                  <circle cx="40" cy="40" r="38" fill="none" stroke="#e5e7eb" stroke-width="4"/>
+                  <circle
+                    class="timer-ring"
+                    cx="40" cy="40" r="38"
+                    fill="none"
+                    stroke-width="4"
+                    stroke-linecap="round"
+                    [attr.stroke]="timerColor()"
+                    [attr.stroke-dasharray]="circumference"
+                    [attr.stroke-dashoffset]="timerDash()"
+                  />
+                  <text x="40" y="42" text-anchor="middle" dominant-baseline="central"
+                    [attr.fill]="timerColor()" font-size="18" font-weight="700">
+                    {{ timerExpired() ? '0' : timer() }}
+                  </text>
+                </svg>
+              </div>
             </div>
           </div>
 
-          <div class="grid gap-3">
-            @for (option of question.options; track option; let i = $index) {
+          <!-- Options -->
+          <div class="p-5 grid gap-3">
+            @for (opt of shuffledOptions(); track $index; let i = $index) {
               <button
-                (click)="selectOption(i)"
+                (click)="pickOption(i)"
                 [disabled]="answered()"
-                class="group flex w-full items-center gap-4 rounded-2xl border px-4 py-4 text-left text-sm font-medium transition-all sm:px-5 sm:py-5"
+                class="flex items-center gap-3 w-full rounded-xl border-2 px-4 py-4 text-left transition-all"
                 [class]="getOptionClass(i)"
               >
                 <span
-                  class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl border text-sm font-bold transition-all"
-                  [class]="answered() && i === question.correct
-                    ? 'border-emerald-300 bg-emerald-300 text-slate-950'
-                    : answered() && i === selectedOption() && i !== question.correct
-                      ? 'border-rose-300 bg-rose-300 text-slate-950'
-                      : 'border-current/40 bg-white/5'"
+                  class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border-2 text-sm font-bold transition-all"
+                  [class]="getOptionIconClass(i)"
                 >
-                  @if (answered() && i === question.correct) {
-                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
-                    </svg>
-                  } @else if (answered() && i === selectedOption() && i !== question.correct) {
-                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"/>
-                    </svg>
+                  @if (answered() && i === shuffledCorrect()) {
+                    ✓
+                  } @else if (answered() && i === selectedOption() && i !== shuffledCorrect()) {
+                    ✗
                   } @else {
-                    {{ ['A', 'B', 'C', 'D'][i] }}
+                    {{ ['A','B','C','D'][i] }}
                   }
                 </span>
-
-                <div>
-                  <p class="text-base text-current">{{ option }}</p>
-                  <p class="mt-1 text-xs text-current/65">
-                    @if (!answered()) {
-                      Select to lock your answer.
-                    } @else if (i === question.correct) {
-                      This is the correct answer.
-                    } @else if (i === selectedOption()) {
-                      This was your choice.
-                    } @else {
-                      Compare this against the explanation below.
-                    }
-                  </p>
-                </div>
+                <span class="text-base font-medium text-gray-800">{{ opt }}</span>
               </button>
             }
           </div>
         </div>
 
+        <!-- Feedback after answer -->
         @if (answered()) {
-          <div class="rounded-[2rem] border p-6 backdrop-blur" [class]="selectedOption() === question.correct ? 'border-emerald-300/30 bg-emerald-400/10' : 'border-rose-300/30 bg-rose-400/10'">
-            <div class="mb-4 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-              <div>
-                <p class="text-sm font-semibold uppercase tracking-[0.22em]" [class]="selectedOption() === question.correct ? 'text-emerald-200' : 'text-rose-200'">
-                  @if (selectedOption() === question.correct) {
-                    Correct answer
-                  } @else {
-                    Review this one
-                  }
-                </p>
-                <h3 class="mt-2 text-xl font-bold text-white">
-                  @if (selectedOption() === question.correct) {
-                    +10 XP earned. Nice read.
-                  } @else {
-                    The right answer was {{ ['A', 'B', 'C', 'D'][question.correct] }}.
-                  }
-                </h3>
-              </div>
+          <div
+            class="mt-4 rounded-2xl border-2 p-5 fade-in"
+            [class]="timerExpired() && selectedOption() === null
+              ? 'border-orange-200 bg-orange-50'
+              : selectedOption() === shuffledCorrect()
+                ? 'border-green-200 bg-green-50'
+                : 'border-red-200 bg-red-50'"
+          >
+            @if (timerExpired() && selectedOption() === null) {
+              <p class="font-bold text-orange-700">⏰ Time's up!</p>
+              <p class="mt-1 text-sm text-gray-600">Correct answer: <span class="font-semibold">{{ shuffledOptions()[shuffledCorrect()] }}</span></p>
+            } @else if (selectedOption() === shuffledCorrect()) {
+              <p class="font-bold text-green-700">✅ Correct!</p>
+            } @else {
+              <p class="font-bold text-red-700">❌ Wrong</p>
+              <p class="mt-1 text-sm text-gray-600">Correct answer: <span class="font-semibold">{{ shuffledOptions()[shuffledCorrect()] }}</span></p>
+            }
 
-              <div class="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-200">
-                <p>Current streak: <span class="font-semibold text-white">{{ currentStreak() }}</span></p>
-                <p class="mt-1">Best streak: <span class="font-semibold text-white">{{ bestStreak() }}</span></p>
-              </div>
-            </div>
+            <p class="mt-2 text-sm text-gray-600">{{ q.explanation }}</p>
 
-            <p class="text-sm leading-7 text-slate-100">{{ question.explanation }}</p>
-
-            <div class="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <p class="text-sm text-slate-300">
-                Correct option:
-                <span class="font-semibold text-white">{{ question.options[question.correct] }}</span>
-              </p>
-
-              <button
-                (click)="nextQuestion()"
-                class="inline-flex items-center justify-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-100"
-              >
-                @if (currentIndex() < questions().length - 1) {
-                  Next Question
-                } @else {
-                  See Results
-                }
-                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                </svg>
-              </button>
-            </div>
+            <button
+              (click)="nextQuestion()"
+              class="mt-4 rounded-full bg-green-500 px-6 py-2.5 text-sm font-semibold text-white shadow-md shadow-green-500/20 transition hover:bg-green-600"
+            >
+              {{ questionNum() < TOTAL - 1 ? 'Next →' : 'See Results →' }}
+            </button>
           </div>
         }
       }
-    } @else {
-      <div class="rounded-[2.2rem] border border-white/10 bg-slate-950/70 p-8 text-center shadow-2xl shadow-slate-950/30 backdrop-blur sm:p-12">
-        <p class="text-sm font-semibold uppercase tracking-[0.28em] text-emerald-200/80">Quiz Complete</p>
-        <h2 class="mt-3 text-4xl font-black tracking-tight text-white">Final Score: {{ score() }}/{{ questions().length }}</h2>
-        <p class="mx-auto mt-3 max-w-2xl text-base leading-7 text-slate-300">{{ performanceMessage() }}</p>
-
-        <div class="mx-auto mt-8 max-w-xl">
-          <div class="mb-3 flex items-center justify-between text-sm font-semibold text-slate-300">
-            <span>Accuracy</span>
-            <span>{{ scorePercentage() }}%</span>
-          </div>
-          <div class="h-4 overflow-hidden rounded-full bg-white/10">
-            <div class="h-full rounded-full bg-gradient-to-r from-emerald-300 via-cyan-300 to-sky-400 transition-all duration-700" [style.width.%]="scorePercentage()"></div>
-          </div>
-        </div>
-
-        <div class="mt-8 grid gap-3 sm:grid-cols-3">
-          <div class="rounded-2xl border border-white/10 bg-white/5 px-4 py-4">
-            <p class="text-xs uppercase tracking-[0.22em] text-slate-400">Total XP</p>
-            <p class="mt-2 text-3xl font-bold text-white">{{ xp() }}</p>
-          </div>
-          <div class="rounded-2xl border border-white/10 bg-white/5 px-4 py-4">
-            <p class="text-xs uppercase tracking-[0.22em] text-slate-400">Best Streak</p>
-            <p class="mt-2 text-3xl font-bold text-white">{{ bestStreak() }}</p>
-          </div>
-          <div class="rounded-2xl border border-white/10 bg-white/5 px-4 py-4">
-            <p class="text-xs uppercase tracking-[0.22em] text-slate-400">Language</p>
-            <p class="mt-2 text-xl font-bold text-white">{{ getSelectedLanguageLabel() }}</p>
-          </div>
-        </div>
-
-        <div class="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
-          <button
-            (click)="loadQuiz()"
-            class="rounded-full bg-white px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-100"
-          >
-            Generate New Quiz
-          </button>
-          <button
-            (click)="restartQuiz()"
-            class="rounded-full border border-white/15 bg-white/5 px-6 py-3 text-sm font-semibold text-white transition hover:border-emerald-300/40 hover:bg-emerald-400/10"
-          >
-            Retry Same Round
-          </button>
-        </div>
-      </div>
     }
   </div>
 </section>

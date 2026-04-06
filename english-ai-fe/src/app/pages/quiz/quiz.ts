@@ -1,201 +1,230 @@
-import { Component, computed, inject, signal } from '@angular/core';
-import { DecimalPipe } from '@angular/common';
+import { Component, computed, inject, OnDestroy, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { AI_API_URL } from '../../shared/api';
 import { SUPPORTED_LANGUAGE_OPTIONS, getLanguageOption } from '../../shared/languages';
 
-type QuizCategory = 'vocabulary' | 'grammar' | 'listening' | 'speaking';
-type QuizDifficulty = 'beginner' | 'intermediate' | 'advanced';
-
 interface QuizQuestion {
-  question: string;
+  display: string;
+  question_type: string;
   options: string[];
   correct: number;
   explanation: string;
 }
 
-interface QuizResponse {
-  questions?: QuizQuestion[];
-}
-
 @Component({
   selector: 'app-quiz',
-  imports: [DecimalPipe],
+  imports: [],
   templateUrl: './quiz.html',
   styleUrl: './quiz.css',
 })
-export class Quiz {
+export class Quiz implements OnDestroy {
   private http = inject(HttpClient);
-  private quizRequestId = 0;
+  private timerInterval: ReturnType<typeof setInterval> | null = null;
+  private requestId = 0;
 
   readonly languages = SUPPORTED_LANGUAGE_OPTIONS;
-  readonly categories: { id: QuizCategory; label: string; description: string }[] = [
-    { id: 'vocabulary', label: 'Vocabulary', description: 'Word meaning and usage' },
-    { id: 'grammar', label: 'Grammar', description: 'Sentence structure and tense' },
-    { id: 'listening', label: 'Listening', description: 'Audio-comprehension skills' },
-    { id: 'speaking', label: 'Speaking', description: 'Fluency and pronunciation habits' },
-  ];
-  readonly difficulties: { id: QuizDifficulty; label: string }[] = [
-    { id: 'beginner', label: 'Beginner' },
-    { id: 'intermediate', label: 'Intermediate' },
-    { id: 'advanced', label: 'Advanced' },
-  ];
+  readonly TOTAL = 30;
 
+  // State
   selectedLanguage = signal(localStorage.getItem('bhashaai_learn_language') || 'hindi');
-  selectedCategory = signal<QuizCategory>('vocabulary');
-  selectedDifficulty = signal<QuizDifficulty>('beginner');
-  questions = signal<QuizQuestion[]>([]);
-  currentIndex = signal(0);
+  started = signal(false);
+  loading = signal(false);
+  error = signal('');
+
+  question = signal<QuizQuestion | null>(null);
+  shuffledOptions = signal<string[]>([]);
+  shuffledCorrect = signal(0);
+
+  questionNum = signal(0);
   score = signal(0);
-  xp = signal(0);
-  currentStreak = signal(0);
-  bestStreak = signal(0);
   selectedOption = signal<number | null>(null);
   answered = signal(false);
-  quizComplete = signal(false);
-  isLoading = signal(false);
-  error = signal('');
-  cardAnimating = signal(true);
+  finished = signal(false);
 
-  currentQuestion = computed(() => this.questions()[this.currentIndex()] ?? null);
-  progress = computed(() => {
-    const questionCount = this.questions().length;
-    if (!questionCount) return 0;
-    return ((this.currentIndex() + 1) / questionCount) * 100;
-  });
-  scorePercentage = computed(() => {
-    const questionCount = this.questions().length;
-    if (!questionCount) return 0;
-    return Math.round((this.score() / questionCount) * 100);
-  });
-  performanceMessage = computed(() => {
-    const percentage = this.scorePercentage();
-    if (percentage >= 90) return 'Outstanding work. You are building real command fast.';
-    if (percentage >= 70) return 'Strong round. Your fundamentals are holding up well.';
-    if (percentage >= 50) return 'Solid progress. A little more repetition will sharpen this.';
-    return 'Good attempt. Review the explanations and run another set.';
+  // Timer
+  timer = signal(30);
+  timerExpired = signal(false);
+
+  // Confetti
+  confetti = signal<{ left: string; color: string; delay: string }[]>([]);
+
+  // Computed
+  languageLabel = computed(() => getLanguageOption(this.selectedLanguage())?.name ?? 'Hindi');
+
+  timerColor = computed(() => {
+    const t = this.timer();
+    if (t > 20) return '#22c55e';
+    if (t > 10) return '#eab308';
+    return '#ef4444';
   });
 
-  constructor() {
-    this.loadQuiz();
-  }
+  timerDash = computed(() => {
+    const c = 2 * Math.PI * 38;
+    return c - (this.timer() / 30) * c;
+  });
 
-  onCategoryChange(category: string) {
-    this.selectedCategory.set(category as QuizCategory);
-    this.loadQuiz();
-  }
+  circumference = 2 * Math.PI * 38;
 
-  onDifficultyChange(event: Event) {
-    const select = event.target as HTMLSelectElement;
-    this.selectedDifficulty.set(select.value as QuizDifficulty);
-    this.loadQuiz();
+  scorePercent = computed(() => Math.round((this.score() / this.TOTAL) * 100));
+
+  resultMessage = computed(() => {
+    const p = this.scorePercent();
+    if (p === 100) return 'Perfect! You are amazing! 🏆';
+    if (p >= 80) return 'Great job! Keep learning! 🌟';
+    if (p >= 60) return 'Good effort! Practice more! 📚';
+    return 'Keep going! You will get better! 💪';
+  });
+
+  ngOnDestroy() {
+    this.stopTimer();
   }
 
   onLanguageChange(event: Event) {
-    const select = event.target as HTMLSelectElement;
-    this.selectedLanguage.set(select.value);
-    this.loadQuiz();
+    const val = (event.target as HTMLSelectElement).value;
+    this.selectedLanguage.set(val);
+    localStorage.setItem('bhashaai_learn_language', val);
   }
 
-  selectOption(index: number) {
-    const question = this.currentQuestion();
-    if (this.answered() || !question) return;
-
-    this.selectedOption.set(index);
-    this.answered.set(true);
-    if (index === question.correct) {
-      this.score.update(s => s + 1);
-      this.xp.update(value => value + 10);
-      this.currentStreak.update(value => value + 1);
-      this.bestStreak.update(value => Math.max(value, this.currentStreak()));
-    } else {
-      this.currentStreak.set(0);
-    }
-  }
-
-  nextQuestion() {
-    if (this.currentIndex() < this.questions().length - 1) {
-      this.currentIndex.update(i => i + 1);
-      this.selectedOption.set(null);
-      this.answered.set(false);
-      this.triggerCardAnimation();
-    } else {
-      this.quizComplete.set(true);
-    }
-  }
-
-  restartQuiz() {
-    this.currentIndex.set(0);
+  startQuiz() {
+    this.started.set(true);
     this.score.set(0);
-    this.xp.set(0);
-    this.currentStreak.set(0);
-    this.bestStreak.set(0);
+    this.questionNum.set(0);
+    this.finished.set(false);
+    this.confetti.set([]);
+    this.loadQuestion();
+  }
+
+  loadQuestion() {
+    const id = ++this.requestId;
+    this.loading.set(true);
+    this.error.set('');
     this.selectedOption.set(null);
     this.answered.set(false);
-    this.quizComplete.set(false);
-    this.error.set('');
-    this.triggerCardAnimation();
-  }
-
-  loadQuiz() {
-    const requestId = ++this.quizRequestId;
-    this.restartQuiz();
-    this.isLoading.set(true);
-    this.questions.set([]);
-
-    const languageName = getLanguageOption(this.selectedLanguage())?.name ?? 'English';
-    const variationSeed = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    this.timerExpired.set(false);
+    this.question.set(null);
+    this.stopTimer();
 
     this.http
-      .post<QuizResponse>(`${AI_API_URL}/quiz`, {
-        language: languageName,
-        category: this.selectedCategory(),
-        difficulty: this.selectedDifficulty(),
-        variationSeed,
+      .post<{ question?: QuizQuestion }>(`${AI_API_URL}/quiz`, {
+        language: this.languageLabel(),
       })
       .subscribe({
-        next: (response) => {
-          if (requestId !== this.quizRequestId) return;
-          const questions = Array.isArray(response.questions) ? response.questions : [];
-          this.questions.set(questions);
-          this.isLoading.set(false);
-          if (!questions.length) {
-            this.error.set('No questions were generated. Try another quiz setup.');
+        next: (res) => {
+          if (id !== this.requestId) return;
+          const q = res.question;
+          if (q && q.display && Array.isArray(q.options) && q.options.length === 4) {
+            this.question.set(q);
+            this.shuffleOptions(q);
+            this.loading.set(false);
+            this.startTimer();
+          } else {
+            this.loading.set(false);
+            this.error.set('Bad question received. Trying again...');
           }
-          this.triggerCardAnimation();
         },
         error: () => {
-          if (requestId !== this.quizRequestId) return;
-          this.isLoading.set(false);
-          this.error.set('Quiz service is unavailable right now. Try again in a moment.');
+          if (id !== this.requestId) return;
+          this.loading.set(false);
+          this.error.set('Could not load question. Try again.');
         },
       });
   }
 
-  getOptionClass(index: number): string {
-    const question = this.currentQuestion();
-    if (!question) {
-      return 'border-white/10 bg-white/5 text-slate-200';
+  private shuffleOptions(q: QuizQuestion) {
+    const indexed = q.options.map((opt, i) => ({ opt, isCorrect: i === q.correct }));
+    for (let i = indexed.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [indexed[i], indexed[j]] = [indexed[j], indexed[i]];
     }
-
-    if (!this.answered()) {
-      return 'border-white/10 bg-white/5 text-slate-100 hover:-translate-y-0.5 hover:border-emerald-300/50 hover:bg-emerald-400/10';
-    }
-    if (index === question.correct) {
-      return 'border-emerald-400 bg-emerald-400/15 text-emerald-100';
-    }
-    if (index === this.selectedOption() && index !== question.correct) {
-      return 'border-rose-400 bg-rose-400/15 text-rose-100';
-    }
-    return 'border-white/5 bg-white/5 text-slate-400';
+    this.shuffledOptions.set(indexed.map(x => x.opt));
+    this.shuffledCorrect.set(indexed.findIndex(x => x.isCorrect));
   }
 
-  getSelectedLanguageLabel(): string {
-    return getLanguageOption(this.selectedLanguage())?.name ?? 'English';
+  pickOption(index: number) {
+    if (this.answered()) return;
+    this.stopTimer();
+    this.selectedOption.set(index);
+    this.answered.set(true);
+    if (index === this.shuffledCorrect()) {
+      this.score.update(s => s + 1);
+    }
   }
 
-  private triggerCardAnimation() {
-    this.cardAnimating.set(false);
-    setTimeout(() => this.cardAnimating.set(true), 0);
+  nextQuestion() {
+    const next = this.questionNum() + 1;
+    if (next >= this.TOTAL) {
+      this.finished.set(true);
+      this.stopTimer();
+      if (this.scorePercent() >= 70) this.launchConfetti();
+    } else {
+      this.questionNum.set(next);
+      this.loadQuestion();
+    }
+  }
+
+  retryQuiz() {
+    this.startQuiz();
+  }
+
+  goToSelect() {
+    this.started.set(false);
+    this.finished.set(false);
+    this.confetti.set([]);
+  }
+
+  getOptionClass(i: number): string {
+    if (!this.answered()) return 'border-gray-200 bg-white hover:border-green-400 hover:bg-green-50';
+    if (i === this.shuffledCorrect()) return 'border-green-500 bg-green-50';
+    if (i === this.selectedOption()) return 'border-red-400 bg-red-50';
+    return 'border-gray-100 bg-gray-50';
+  }
+
+  getOptionIconClass(i: number): string {
+    if (!this.answered()) return 'border-gray-300 bg-gray-50 text-gray-500';
+    if (i === this.shuffledCorrect()) return 'border-green-500 bg-green-500 text-white';
+    if (i === this.selectedOption()) return 'border-red-400 bg-red-400 text-white';
+    return 'border-gray-200 bg-gray-50 text-gray-400';
+  }
+
+  // Timer
+  private startTimer() {
+    this.timer.set(30);
+    this.timerInterval = setInterval(() => {
+      const t = this.timer();
+      if (t <= 1) {
+        this.timer.set(0);
+        this.onTimerExpired();
+      } else {
+        this.timer.set(t - 1);
+      }
+    }, 1000);
+  }
+
+  private stopTimer() {
+    if (this.timerInterval) {
+      clearInterval(this.timerInterval);
+      this.timerInterval = null;
+    }
+  }
+
+  private onTimerExpired() {
+    this.stopTimer();
+    this.timerExpired.set(true);
+    this.answered.set(true);
+  }
+
+  // Confetti
+  private launchConfetti() {
+    const colors = ['#22c55e', '#eab308', '#3b82f6', '#ef4444', '#a855f7', '#ec4899'];
+    const pieces: { left: string; color: string; delay: string }[] = [];
+    for (let i = 0; i < 40; i++) {
+      pieces.push({
+        left: `${Math.random() * 100}%`,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        delay: `${Math.random() * 2}s`,
+      });
+    }
+    this.confetti.set(pieces);
+    setTimeout(() => this.confetti.set([]), 3500);
   }
 }
