@@ -32,7 +32,7 @@
       <div class="flex-1">
         <div class="flex items-center justify-between mb-1">
           <span class="text-[10px] font-bold text-green-700">{{ learnedCount() }}/{{ totalWords() }} words</span>
-          <span class="text-[10px] font-semibold text-slate-400">{{ selectedLanguageName() }}</span>
+          <span class="text-[10px] font-semibold text-slate-400">{{ levelLabel() }}</span>
         </div>
         <div class="h-2.5 w-full rounded-full bg-green-100 overflow-hidden">
           <div
@@ -91,41 +91,12 @@
     <!-- ==================== TODAY TAB ==================== -->
     @if (activeTab() === 'today') {
 
-      <!-- DAILY SENTENCES -->
-      @if (dailySentences().length > 0) {
-        <div class="mb-5 rounded-2xl border border-green-200 bg-gradient-to-br from-green-50 to-emerald-50 p-4 shadow-sm">
-          <div class="flex items-center gap-2 mb-3">
-            <span class="text-lg">💬</span>
-            <h3 class="text-sm font-black text-green-800">Today's Phrases</h3>
-          </div>
-          <div class="space-y-2">
-            @for (s of dailySentences(); track $index) {
-              <div class="rounded-xl bg-white border border-green-100 px-3 py-2.5 flex items-start gap-3">
-                <span class="text-lg mt-0.5">🗣️</span>
-                <div class="flex-1 min-w-0">
-                  <p class="text-sm font-bold text-slate-900">{{ s.english }}</p>
-                  <p class="text-xs font-semibold text-green-700">{{ s.native }} <span class="text-slate-400 font-normal">({{ s.transliteration }})</span></p>
-                  @if (s.usage) {
-                    <p class="text-[10px] text-slate-400 mt-0.5">{{ s.usage }}</p>
-                  }
-                </div>
-              </div>
-            }
-          </div>
-        </div>
-      } @else if (dailySentencesLoading()) {
-        <div class="mb-5 rounded-2xl border border-green-200 bg-green-50 p-4 text-center">
-          <div class="mx-auto mb-2 h-6 w-6 rounded-full border-3 border-green-200 border-t-green-500 animate-spin"></div>
-          <p class="text-xs font-bold text-green-700">Loading daily phrases...</p>
-        </div>
-      }
-
       <!-- Loading -->
       @if (isLoading()) {
         <div class="rounded-2xl border border-green-200 bg-white px-6 py-14 text-center shadow-md animate-fade-in">
           <div class="mx-auto mb-3 h-10 w-10 rounded-full border-4 border-green-100 border-t-green-500 animate-spin"></div>
-          <p class="text-base font-bold text-slate-900">Generating English words...</p>
-          <p class="mt-1 text-xs text-slate-500">Learning English via {{ selectedLanguageName() }}</p>
+          <p class="text-base font-bold text-slate-900">Generating words...</p>
+          <p class="mt-1 text-xs text-slate-500">{{ selectedLanguageName() }} · {{ levelLabel() }} level</p>
         </div>
       }
 
@@ -472,16 +443,16 @@
     @if (activeTab() === 'practice') {
       <div class="animate-fade-in">
         @if (fillBlankLoading()) {
-          <div class="rounded-2xl border border-green-200 bg-white px-6 py-14 text-center shadow-md">
-            <div class="mx-auto mb-3 h-10 w-10 rounded-full border-4 border-green-100 border-t-green-500 animate-spin"></div>
+          <div class="rounded-2xl border border-teal-200 bg-white px-6 py-14 text-center shadow-md">
+            <div class="mx-auto mb-3 h-10 w-10 rounded-full border-4 border-teal-100 border-t-teal-500 animate-spin"></div>
             <p class="text-base font-bold text-slate-900">Generating sentences...</p>
           </div>
         }
 
         @else if (fillBlankFinished()) {
-          <div class="rounded-2xl bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 border-2 border-green-300 px-6 py-8 text-center shadow-md animate-bounce-in">
+          <div class="rounded-2xl bg-gradient-to-br from-teal-50 via-cyan-50 to-sky-50 border-2 border-teal-300 px-6 py-8 text-center shadow-md animate-bounce-in">
             <p class="text-5xl mb-3">{{ fillBlankScore() >= fillBlankSentences().length * 0.8 ? '🏆' : '💪' }}</p>
-            <h2 class="text-xl font-black text-green-700">{{ fillBlankScore() }}/{{ fillBlankSentences().length }}</h2>
+            <h2 class="text-xl font-black text-teal-700">{{ fillBlankScore() }}/{{ fillBlankSentences().length }}</h2>
             <p class="mt-1 text-sm font-semibold text-slate-700">
               @if (fillBlankScore() === fillBlankSentences().length) {
                 All correct! Amazing! 🎉
@@ -491,7 +462,7 @@
                 Keep practicing! 💪
               }
             </p>
-            <button (click)="resetFillBlank()" class="mt-5 rounded-xl bg-green-500 px-6 py-2.5 text-sm font-bold text-white hover:bg-green-600 transition-all">
+            <button (click)="resetFillBlank()" class="mt-5 rounded-xl bg-teal-500 px-6 py-2.5 text-sm font-bold text-white hover:bg-teal-600 transition-all">
               🔄 Practice More
             </button>
           </div>
@@ -500,20 +471,17 @@
         @else if (fillBlankSentences().length > 0) {
           <!-- Progress -->
           <div class="mb-4 flex items-center justify-between">
-            <span class="text-xs font-bold text-green-700">Sentence {{ fillBlankIndex() + 1 }}/{{ fillBlankSentences().length }}</span>
+            <span class="text-xs font-bold text-teal-700">Sentence {{ fillBlankIndex() + 1 }}/{{ fillBlankSentences().length }}</span>
             <span class="text-xs font-bold text-green-600">Score: {{ fillBlankScore() }} · +10 XP each</span>
           </div>
-          <div class="h-2 w-full rounded-full bg-green-100 overflow-hidden mb-5">
-            <div class="h-2 rounded-full bg-gradient-to-r from-green-400 to-emerald-500 transition-all duration-500"
+          <div class="h-2 w-full rounded-full bg-teal-100 overflow-hidden mb-5">
+            <div class="h-2 rounded-full bg-gradient-to-r from-teal-400 to-cyan-500 transition-all duration-500"
               [style.width.%]="((fillBlankIndex() + 1) / fillBlankSentences().length) * 100"></div>
           </div>
 
           @if (fillBlankSentences()[fillBlankIndex()]; as s) {
-            <div class="rounded-2xl border-2 border-green-200 bg-white p-5 shadow-md">
-              <p class="text-base font-black text-slate-900 mb-1 leading-relaxed">{{ s.sentence }}</p>
-              @if (s.sentence_native) {
-                <p class="text-xs text-green-600 font-semibold mb-4">{{ s.sentence_native }}</p>
-              }
+            <div class="rounded-2xl border-2 border-teal-200 bg-white p-5 shadow-md">
+              <p class="text-base font-black text-slate-900 mb-4 leading-relaxed">{{ s.sentence }}</p>
 
               <div class="grid grid-cols-2 gap-2.5">
                 @for (option of s.options; track $index) {
@@ -521,7 +489,7 @@
                     (click)="selectFillBlankAnswer($index)"
                     class="rounded-xl border-2 p-3 text-sm font-semibold transition-all text-center"
                     [class]="s.selected === undefined
-                      ? 'border-slate-200 bg-slate-50 text-slate-700 hover:border-green-300 hover:bg-green-50 active:scale-[0.97]'
+                      ? 'border-slate-200 bg-slate-50 text-slate-700 hover:border-teal-300 hover:bg-teal-50 active:scale-[0.97]'
                       : $index === s.correct
                         ? 'border-green-400 bg-green-50 text-green-700'
                         : $index === s.selected
@@ -543,12 +511,12 @@
         }
 
         @else {
-          <div class="rounded-2xl border border-green-200 bg-white px-6 py-12 text-center shadow-sm">
+          <div class="rounded-2xl border border-teal-200 bg-white px-6 py-12 text-center shadow-sm">
             <p class="text-4xl mb-3">📝</p>
             <p class="text-sm font-bold text-slate-700">No practice sentences available</p>
-            <p class="mt-1 text-xs text-slate-500">Tap to generate sentences</p>
-            <button (click)="loadFillBlank()" class="mt-4 rounded-xl bg-green-500 px-5 py-2 text-sm font-bold text-white hover:bg-green-600">
-              Generate Sentences
+            <p class="mt-1 text-xs text-slate-500">Learn some words first!</p>
+            <button (click)="setTab('today')" class="mt-4 rounded-xl bg-green-500 px-5 py-2 text-sm font-bold text-white hover:bg-green-600">
+              Go Learn Words
             </button>
           </div>
         }
@@ -568,7 +536,7 @@
           </div>
           <div class="flex items-center justify-between mb-3">
             <h3 class="text-sm font-bold text-slate-900">{{ day.label }} · {{ formatDate(day.date) }}</h3>
-            <span class="rounded-lg bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">{{ day.words.length }} words</span>
+            <span class="rounded-lg bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">{{ day.level === 'adults' ? '💼' : '🎒' }} {{ day.words.length }} words</span>
           </div>
           <div class="grid gap-2">
             @for (word of day.words; track $index) {
@@ -601,7 +569,7 @@
               >
                 <div class="text-left">
                   <p class="text-sm font-bold text-slate-900">{{ day.label }}</p>
-                  <p class="text-[10px] text-slate-500">{{ formatDate(day.date) }}</p>
+                  <p class="text-[10px] text-slate-500">{{ formatDate(day.date) }} · {{ day.level === 'adults' ? '💼 Adults' : '🎒 School' }}</p>
                 </div>
                 <div class="flex items-center gap-1.5">
                   <span class="rounded-lg bg-green-100 px-2 py-0.5 text-xs font-bold text-green-700">{{ day.words.length }}</span>

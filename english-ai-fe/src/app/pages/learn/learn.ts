@@ -20,6 +20,7 @@ interface DayHistory {
   date: string;
   label: string;
   words: DailyWord[];
+  level: string;
 }
 
 interface QuizQuestion {
@@ -31,25 +32,19 @@ interface QuizQuestion {
 
 interface FillBlankSentence {
   sentence: string;
-  sentence_native: string;
   blank_word: string;
   options: string[];
   correct: number;
   selected?: number;
 }
 
-interface DailySentence {
-  english: string;
-  native: string;
-  transliteration: string;
-  usage: string;
-}
-
 type LearnTab = 'today' | 'previous' | 'quiz' | 'spelling' | 'practice';
+type Level = 'school' | 'adults';
 
-const DAILY_WORDS_KEY = 'bhashaai_daily_words_v3';
+const DAILY_WORDS_KEY = 'bhashaai_daily_words';
 const STREAK_KEY = 'bhashaai_learn_streak';
 const LEARNED_KEY = 'bhashaai_learned_history';
+const LEVEL_KEY = 'bhashaai_learn_level';
 const LANG_KEY = 'bhashaai_learn_language';
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -87,6 +82,7 @@ export class Learn {
   readonly indianLanguages = INDIAN_LANGUAGE_OPTIONS;
 
   activeTab = signal<LearnTab>('today');
+  level = signal<Level>('school');
   selectedLanguage = signal('hindi');
   words = signal<DailyWord[]>([]);
   currentIndex = signal(0);
@@ -125,10 +121,6 @@ export class Learn {
   fillBlankLoading = signal(false);
   fillBlankResult = signal<'correct' | 'wrong' | null>(null);
 
-  // Daily sentences state
-  dailySentences = signal<DailySentence[]>([]);
-  dailySentencesLoading = signal(false);
-
   // Computed
   currentCard = computed(() => this.words()[this.currentIndex()] ?? null);
   learnedCount = computed(() => this.learnedIndices().size);
@@ -139,17 +131,18 @@ export class Learn {
     return Math.min((this.learnedCount() / total) * 100, 100);
   });
   goalComplete = computed(() => this.learnedCount() >= this.totalWords() && this.totalWords() > 0);
+  levelLabel = computed(() => this.level() === 'school' ? 'School' : 'Adults');
   selectedLanguageName = computed(() => {
     const lang = this.indianLanguages.find(l => l.code === this.selectedLanguage());
     return lang ? lang.name : 'Hindi';
   });
 
   constructor() {
+    this.loadLevel();
     this.loadLanguage();
     this.loadStreak();
     this.loadHistory();
     this.loadTodayWords();
-    this.fetchDailySentences();
   }
 
   setTab(tab: LearnTab) {
@@ -166,6 +159,26 @@ export class Learn {
     }
     if (tab === 'practice' && this.fillBlankSentences().length === 0) {
       this.loadFillBlank();
+    }
+  }
+
+  onLevelChange(event: Event) {
+    const select = event.target as HTMLSelectElement;
+    const newLevel = select.value as Level;
+    this.level.set(newLevel);
+    localStorage.setItem(LEVEL_KEY, newLevel);
+    this.todayComplete.set(false);
+    this.learnedIndices.set(new Set());
+    this.reviewIndices.set(new Set());
+    this.currentIndex.set(0);
+    this.isFlipped.set(false);
+    this.fetchDailyWords(new Date().toISOString().split('T')[0]);
+  }
+
+  private loadLevel() {
+    const saved = localStorage.getItem(LEVEL_KEY);
+    if (saved === 'school' || saved === 'adults') {
+      this.level.set(saved);
     }
   }
 
@@ -186,7 +199,6 @@ export class Learn {
     this.currentIndex.set(0);
     this.isFlipped.set(false);
     this.fetchDailyWords(new Date().toISOString().split('T')[0]);
-    this.fetchDailySentences();
   }
 
   // === LOAD TODAY'S WORDS ===
@@ -197,7 +209,7 @@ export class Learn {
     if (saved) {
       try {
         const data = JSON.parse(saved);
-        if (data.date === today && data.language === this.selectedLanguage() && Array.isArray(data.words) && data.words.length > 0) {
+        if (data.date === today && data.level === this.level() && data.language === this.selectedLanguage() && Array.isArray(data.words) && data.words.length > 0) {
           this.words.set(data.words);
           const learned = new Set<number>(data.learned || []);
           this.learnedIndices.set(learned);
@@ -224,6 +236,7 @@ export class Learn {
       .post<{ success: boolean; words: DailyWord[]; date: string }>(`${AI_API_URL}/daily-words`, {
         language: this.selectedLanguageName(),
         date: today,
+        level: this.level(),
         excludeWords: allLearned,
       })
       .subscribe({
@@ -257,7 +270,7 @@ export class Learn {
   }
 
   private saveTodayState(date: string, words: DailyWord[], learned: number[]) {
-    localStorage.setItem(DAILY_WORDS_KEY, JSON.stringify({ date, words, learned, language: this.selectedLanguage() }));
+    localStorage.setItem(DAILY_WORDS_KEY, JSON.stringify({ date, words, learned, level: this.level(), language: this.selectedLanguage() }));
   }
 
   // === CARD ACTIONS ===
@@ -331,7 +344,7 @@ export class Learn {
 
     if (history.some(h => h.date === today)) return;
 
-    history.unshift({ date: today, words: this.words() });
+    history.unshift({ date: today, words: this.words(), level: this.level() });
     history = history.slice(0, 30);
     localStorage.setItem(LEARNED_KEY, JSON.stringify(history));
   }
@@ -351,6 +364,7 @@ export class Learn {
             date: h.date,
             label: this.getDateLabel(h.date),
             words: h.words,
+            level: h.level || 'school',
           }))
       );
     } catch {
@@ -490,9 +504,9 @@ export class Learn {
   startSpelling() {
     const learnedWords = this.words().filter((_, i) => this.learnedIndices().has(i));
     if (learnedWords.length === 0) {
-      this.spellingWords.set(this.words().slice(0, 20));
+      this.spellingWords.set(this.words().slice(0, 10));
     } else {
-      this.spellingWords.set([...learnedWords].sort(() => Math.random() - 0.5).slice(0, 20));
+      this.spellingWords.set([...learnedWords].sort(() => Math.random() - 0.5).slice(0, 10));
     }
     this.spellingIndex.set(0);
     this.spellingInput.set('');
@@ -538,6 +552,9 @@ export class Learn {
 
   // === FILL IN THE BLANK ===
   loadFillBlank() {
+    const learnedWords = this.words().filter((_, i) => this.learnedIndices().has(i));
+    const wordsToUse = learnedWords.length >= 5 ? learnedWords : this.words().slice(0, 10);
+
     this.fillBlankLoading.set(true);
     this.fillBlankFinished.set(false);
     this.fillBlankScore.set(0);
@@ -545,7 +562,7 @@ export class Learn {
     this.fillBlankResult.set(null);
 
     this.http.post<{ success: boolean; sentences: FillBlankSentence[] }>(`${AI_API_URL}/fill-blank`, {
-      language: this.selectedLanguageName(),
+      words: wordsToUse,
     }).subscribe({
       next: (res) => {
         if (res.success && res.sentences?.length > 0) {
@@ -589,26 +606,6 @@ export class Learn {
   resetFillBlank() {
     this.fillBlankSentences.set([]);
     this.loadFillBlank();
-  }
-
-  // === DAILY SENTENCES ===
-  fetchDailySentences() {
-    this.dailySentencesLoading.set(true);
-    this.http
-      .post<{ success: boolean; sentences: DailySentence[] }>(`${AI_API_URL}/daily-sentences`, {
-        language: this.selectedLanguageName(),
-      })
-      .subscribe({
-        next: (res) => {
-          if (res.success && res.sentences?.length > 0) {
-            this.dailySentences.set(res.sentences);
-          }
-          this.dailySentencesLoading.set(false);
-        },
-        error: () => {
-          this.dailySentencesLoading.set(false);
-        },
-      });
   }
 
   // === HELPERS ===

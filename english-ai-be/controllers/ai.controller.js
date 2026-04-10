@@ -3,246 +3,7 @@ const Groq = require('groq-sdk');
 const groq = new Groq({ apiKey: process.env.GROQ_CLOUD });
 
 // In-memory cache for daily words (keyed by date+language)
-// Bumped cache version to invalidate stale entries with wrong translations.
-const CACHE_VERSION = 'v3';
 const dailyWordsCache = new Map();
-
-// Script metadata per language. Each language has a native script,
-// a unicode regex range to detect/validate it, and strict rules.
-const LANGUAGE_SCRIPTS = {
-  Hindi:     { script: 'Devanagari', range: '\u0900-\u097F', sample: 'पानी, बिल्ली, पेड़, माँ, स्कूल' },
-  Marathi:   { script: 'Devanagari', range: '\u0900-\u097F', sample: 'पाणी, मांजर, झाड, आई, शाळा' },
-  Sanskrit:  { script: 'Devanagari', range: '\u0900-\u097F', sample: 'जलम्, मार्जारः, वृक्षः, माता, विद्यालयः' },
-  Nepali:    { script: 'Devanagari', range: '\u0900-\u097F', sample: 'पानी, बिरालो, रुख, आमा, विद्यालय' },
-  Konkani:   { script: 'Devanagari', range: '\u0900-\u097F', sample: 'उदक, माजर, रुख, आवय, इस्कोल' },
-  Maithili:  { script: 'Devanagari', range: '\u0900-\u097F', sample: 'पानि, बिलाड़ि, गाछ, माँ, विद्यालय' },
-  Dogri:     { script: 'Devanagari', range: '\u0900-\u097F', sample: 'पानी, बिल्ली, रुक्ख, माँ, स्कूल' },
-  Bodo:      { script: 'Devanagari', range: '\u0900-\u097F', sample: 'दै, मेयो, बिफां, आय, स्कूल' },
-  Bengali:   { script: 'Bengali',    range: '\u0980-\u09FF', sample: 'পানি, বিড়াল, গাছ, মা, স্কুল' },
-  Assamese:  { script: 'Bengali',    range: '\u0980-\u09FF', sample: 'পানী, মেকুৰী, গছ, মা, বিদ্যালয়' },
-  Manipuri:  { script: 'Bengali',    range: '\u0980-\u09FF', sample: 'ঈশিং, হৌদোং, উপাল, ইমা, স্কুল' },
-  Gujarati:  { script: 'Gujarati',   range: '\u0A80-\u0AFF', sample: 'પાણી, બિલાડી, ઝાડ, મા, શાળા' },
-  Punjabi:   { script: 'Gurmukhi',   range: '\u0A00-\u0A7F', sample: 'ਪਾਣੀ, ਬਿੱਲੀ, ਰੁੱਖ, ਮਾਂ, ਸਕੂਲ' },
-  Tamil:     { script: 'Tamil',      range: '\u0B80-\u0BFF', sample: 'தண்ணீர், பூனை, மரம், அம்மா, பள்ளி' },
-  Telugu:    { script: 'Telugu',     range: '\u0C00-\u0C7F', sample: 'నీరు, పిల్లి, చెట్టు, అమ్మ, పాఠశాల' },
-  Kannada:   { script: 'Kannada',    range: '\u0C80-\u0CFF', sample: 'ನೀರು, ಬೆಕ್ಕು, ಮರ, ಅಮ್ಮ, ಶಾಲೆ' },
-  Malayalam: { script: 'Malayalam',  range: '\u0D00-\u0D7F', sample: 'വെള്ളം, പൂച്ച, മരം, അമ്മ, സ്കൂൾ' },
-  Odia:      { script: 'Odia',       range: '\u0B00-\u0B7F', sample: 'ପାଣି, ବିଲେଇ, ଗଛ, ମା, ବିଦ୍ୟାଳୟ' },
-  Urdu:      { script: 'Arabic',     range: '\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF', sample: 'پانی, بلی, درخت, ماں, سکول' },
-  Sindhi:    { script: 'Arabic',     range: '\u0600-\u06FF\u0750-\u077F', sample: 'پاڻي, ٻلي, وڻ, امان, اسڪول' },
-  Kashmiri:  { script: 'Arabic',     range: '\u0600-\u06FF\u0750-\u077F', sample: 'پانؠ, بَرور, کُل, موج, سکول' },
-  Santali:   { script: 'Ol Chiki',   range: '\u1C50-\u1C7F', sample: 'ᱫᱟᱜ, ᱯᱩᱥᱤ, ᱫᱟᱨᱮ, ᱟᱭᱚ, ᱥᱠᱩᱞ' },
-  English:   { script: 'Latin',      range: 'A-Za-z',        sample: 'water, cat, tree, mother, school' },
-};
-
-function getLanguageScriptInfo(language) {
-  return LANGUAGE_SCRIPTS[language] || LANGUAGE_SCRIPTS.Hindi;
-}
-
-// Check whether a string contains at least one character in the expected script.
-// Used to validate LLM output — if the native text has NO characters in the target
-// script, it's clearly wrong (e.g., English letters when we asked for Tamil).
-function hasScriptChars(text, language) {
-  if (!text || typeof text !== 'string') return false;
-  const info = getLanguageScriptInfo(language);
-  if (!info || !info.range) return true;
-  try {
-    const regex = new RegExp(`[${info.range}]`);
-    return regex.test(text);
-  } catch {
-    return true;
-  }
-}
-
-// Shared verified translation banks for beginner English learning.
-// CRITICAL: Each language has DIFFERENT words. Marathi != Hindi.
-const LANGUAGE_WORD_BANKS = {
-  Marathi: {
-    note: 'Use ONLY Marathi words in Devanagari. Marathi and Hindi are DIFFERENT languages. NEVER mix Hindi words like पेड़, पानी, बिल्ली, कुत्ता, सेब, माँ, पिता, स्कूल, किताब, बारिश.',
-    words: 'cat=मांजर (Manjar), dog=कुत्रा (Kutra), cow=गाय (Gaay), horse=घोडा (Ghoda), bird=पक्षी (Pakshi), fish=मासा (Maasa), tree=झाड (Zaad), flower=फूल (Phool), water=पाणी (Paani), milk=दूध (Doodh), rice=भात (Bhaat), bread=भाकरी (Bhakri), apple=सफरचंद (Safarchand), mango=आंबा (Amba), banana=केळ (Kel), grapes=द्राक्षे (Draksha), orange=संत्रा (Santra), mother=आई (Aai), father=बाबा (Baba), sister=बहीण (Bahin), brother=भाऊ (Bhau), boy=मुलगा (Mulga), girl=मुलगी (Mulgi), house=घर (Ghar), school=शाळा (Shaala), book=पुस्तक (Pustak), pen=पेन (Pen), sun=सूर्य (Surya), moon=चंद्र (Chandra), star=तारा (Tara), sky=आकाश (Aakash), rain=पाऊस (Paus), river=नदी (Nadi), red=लाल (Laal), blue=निळा (Nila), green=हिरवा (Hirva), yellow=पिवळा (Pivla), white=पांढरा (Pandhra), black=काळा (Kala), big=मोठा (Motha), small=लहान (Lahaan), one=एक (Ek), two=दोन (Don), three=तीन (Teen), eye=डोळा (Dola), hand=हात (Haat), ear=कान (Kaan), head=डोकं (Doke)',
-    sentences: 'I go to school=मी शाळेत जातो, I eat food=मी जेवण करतो, I drink water=मी पाणी पितो, The sun is big=सूर्य मोठा आहे, I like mangoes=मला आंबे आवडतात, Good morning=शुभ सकाळ, Thank you=धन्यवाद, How are you?=तू कसा आहेस?',
-  },
-  Hindi: {
-    note: 'Use ONLY Hindi words in Devanagari. NEVER use Marathi words like झाड, मांजर, कुत्रा, सफरचंद, आई, बाबा, मुलगा, मुलगी, शाळा, पुस्तक, पाऊस.',
-    words: 'cat=बिल्ली (Billi), dog=कुत्ता (Kutta), cow=गाय (Gaay), horse=घोड़ा (Ghoda), bird=चिड़िया (Chidiya), fish=मछली (Machli), tree=पेड़ (Ped), flower=फूल (Phool), water=पानी (Pani), milk=दूध (Doodh), rice=चावल (Chawal), bread=रोटी (Roti), apple=सेब (Seb), mango=आम (Aam), banana=केला (Kela), grapes=अंगूर (Angoor), orange=संतरा (Santra), mother=माँ (Maa), father=पिता (Pita), sister=बहन (Behen), brother=भाई (Bhai), boy=लड़का (Ladka), girl=लड़की (Ladki), house=घर (Ghar), school=स्कूल (School), book=किताब (Kitaab), pen=कलम (Kalam), sun=सूरज (Suraj), moon=चाँद (Chaand), star=तारा (Tara), sky=आकाश (Aakash), rain=बारिश (Baarish), river=नदी (Nadi), red=लाल (Laal), blue=नीला (Neela), green=हरा (Hara), yellow=पीला (Peela), white=सफेद (Safed), black=काला (Kaala), big=बड़ा (Bada), small=छोटा (Chhota), one=एक (Ek), two=दो (Do), three=तीन (Teen), eye=आँख (Aankh), hand=हाथ (Haath), ear=कान (Kaan), head=सिर (Sir)',
-    sentences: 'I go to school=मैं स्कूल जाता हूँ, I eat food=मैं खाना खाता हूँ, I drink water=मैं पानी पीता हूँ, The sun is big=सूरज बड़ा है, I like mangoes=मुझे आम पसंद है, Good morning=शुभ प्रभात, Thank you=धन्यवाद, How are you?=आप कैसे हैं?',
-  },
-  Tamil: {
-    note: 'Use ONLY Tamil words in Tamil script.',
-    words: 'cat=பூனை (Poonai), dog=நாய் (Naai), cow=பசு (Pasu), bird=பறவை (Paravai), fish=மீன் (Meen), tree=மரம் (Maram), flower=பூ (Poo), water=தண்ணீர் (Thanneer), milk=பால் (Paal), rice=அரிசி (Arisi), apple=ஆப்பிள் (Apple), mango=மாம்பழம் (Maambazham), banana=வாழைப்பழம் (Vaazhaippazham), mother=அம்மா (Amma), father=அப்பா (Appa), house=வீடு (Veedu), school=பள்ளி (Palli), book=புத்தகம் (Puthagam), sun=சூரியன் (Suriyan), moon=நிலா (Nila), red=சிவப்பு (Sivappu), blue=நீலம் (Neelam), green=பச்சை (Pachai), big=பெரிய (Periya), small=சிறிய (Siriya)',
-    sentences: 'I go to school=நான் பள்ளிக்கு செல்கிறேன், I eat food=நான் சாப்பிடுகிறேன், I drink water=நான் தண்ணீர் குடிக்கிறேன், Good morning=காலை வணக்கம், Thank you=நன்றி',
-  },
-  Telugu: {
-    note: 'Use ONLY Telugu words in Telugu script.',
-    words: 'cat=పిల్లి (Pilli), dog=కుక్క (Kukka), cow=ఆవు (Aavu), bird=పక్షి (Pakshi), fish=చేప (Chepa), tree=చెట్టు (Chettu), flower=పువ్వు (Puvvu), water=నీరు (Neeru), milk=పాలు (Paalu), rice=అన్నం (Annam), apple=ఆపిల్ (Apple), mango=మామిడి (Maamidi), banana=అరటిపండు (Aratipandu), mother=అమ్మ (Amma), father=నాన్న (Naanna), house=ఇల్లు (Illu), school=పాఠశాల (Paathashaala), book=పుస్తకం (Pustakam), sun=సూర్యుడు (Suryudu), moon=చంద్రుడు (Chandrudu), red=ఎరుపు (Erupu), blue=నీలం (Neelam), green=ఆకుపచ్చ (Aakupachha), big=పెద్ద (Pedda), small=చిన్న (Chinna)',
-    sentences: 'I go to school=నేను పాఠశాలకు వెళ్తాను, I eat food=నేను భోజనం చేస్తాను, I drink water=నేను నీరు తాగుతాను, Good morning=శుభోదయం, Thank you=ధన్యవాదాలు',
-  },
-};
-
-function normalizeLanguageName(language) {
-  if (!language) return 'Hindi';
-  const lower = String(language).toLowerCase().trim();
-  const map = {
-    hindi: 'Hindi', marathi: 'Marathi', tamil: 'Tamil', telugu: 'Telugu',
-    bengali: 'Bengali', gujarati: 'Gujarati', kannada: 'Kannada', malayalam: 'Malayalam',
-    punjabi: 'Punjabi', urdu: 'Urdu', odia: 'Odia', english: 'English',
-  };
-  return map[lower] || (lower.charAt(0).toUpperCase() + lower.slice(1));
-}
-
-function buildLanguageGuide(language) {
-  const normalized = normalizeLanguageName(language);
-  const info = getLanguageScriptInfo(normalized);
-  const bank = LANGUAGE_WORD_BANKS[normalized];
-
-  const scriptBlock = `\nLANGUAGE ACCURACY (CRITICAL):\n- The user's native language is ${normalized}.\n- All native text MUST be written in ${info.script} script.\n- Example ${normalized} words in ${info.script}: ${info.sample}\n- NEVER write transliterated Romanized text in the "native" or "meaning" field — use proper ${info.script} script only.\n- NEVER use words from a different language. Marathi ≠ Hindi, Bengali ≠ Assamese, Tamil ≠ Telugu, Urdu ≠ Hindi.\n- If unsure of the exact ${normalized} translation for a word, pick a simpler word you ARE sure of.`;
-
-  const bankBlock = bank
-    ? `\nVerified ${normalized} words: ${bank.words}\nVerified ${normalized} sentences: ${bank.sentences}\n${bank.note}`
-    : '';
-
-  return scriptBlock + bankBlock + '\n';
-}
-
-// Word-level English -> native translation map for post-processing.
-// This is the FINAL safety net if the LLM returns wrong-language translations.
-const ENGLISH_TO_NATIVE = {
-  Marathi: {
-    cat: 'मांजर', dog: 'कुत्रा', cow: 'गाय', horse: 'घोडा', bird: 'पक्षी', fish: 'मासा',
-    tree: 'झाड', flower: 'फूल', water: 'पाणी', milk: 'दूध', rice: 'भात', bread: 'भाकरी',
-    apple: 'सफरचंद', mango: 'आंबा', banana: 'केळ', grapes: 'द्राक्षे', orange: 'संत्रा',
-    mother: 'आई', father: 'बाबा', sister: 'बहीण', brother: 'भाऊ',
-    boy: 'मुलगा', girl: 'मुलगी', house: 'घर', school: 'शाळा', book: 'पुस्तक', pen: 'पेन',
-    sun: 'सूर्य', moon: 'चंद्र', star: 'तारा', sky: 'आकाश', rain: 'पाऊस', river: 'नदी',
-    red: 'लाल', blue: 'निळा', green: 'हिरवा', yellow: 'पिवळा', white: 'पांढरा', black: 'काळा',
-    big: 'मोठा', small: 'लहान', one: 'एक', two: 'दोन', three: 'तीन',
-    eye: 'डोळा', hand: 'हात', ear: 'कान', head: 'डोकं',
-    hello: 'नमस्कार', 'good morning': 'शुभ सकाळ', 'good night': 'शुभ रात्री',
-    'thank you': 'धन्यवाद', 'how are you': 'तू कसा आहेस', 'i am fine': 'मी ठीक आहे',
-  },
-  Hindi: {
-    cat: 'बिल्ली', dog: 'कुत्ता', cow: 'गाय', horse: 'घोड़ा', bird: 'चिड़िया', fish: 'मछली',
-    tree: 'पेड़', flower: 'फूल', water: 'पानी', milk: 'दूध', rice: 'चावल', bread: 'रोटी',
-    apple: 'सेब', mango: 'आम', banana: 'केला', grapes: 'अंगूर', orange: 'संतरा',
-    mother: 'माँ', father: 'पिता', sister: 'बहन', brother: 'भाई',
-    boy: 'लड़का', girl: 'लड़की', house: 'घर', school: 'स्कूल', book: 'किताब', pen: 'कलम',
-    sun: 'सूरज', moon: 'चाँद', star: 'तारा', sky: 'आकाश', rain: 'बारिश', river: 'नदी',
-    red: 'लाल', blue: 'नीला', green: 'हरा', yellow: 'पीला', white: 'सफेद', black: 'काला',
-    big: 'बड़ा', small: 'छोटा', one: 'एक', two: 'दो', three: 'तीन',
-    eye: 'आँख', hand: 'हाथ', ear: 'कान', head: 'सिर',
-    hello: 'नमस्ते', 'good morning': 'शुभ प्रभात', 'good night': 'शुभ रात्रि',
-    'thank you': 'धन्यवाद', 'how are you': 'आप कैसे हैं', 'i am fine': 'मैं ठीक हूँ',
-  },
-  Tamil: {
-    cat: 'பூனை', dog: 'நாய்', cow: 'பசு', bird: 'பறவை', fish: 'மீன்',
-    tree: 'மரம்', flower: 'பூ', water: 'தண்ணீர்', milk: 'பால்', rice: 'அரிசி',
-    apple: 'ஆப்பிள்', mango: 'மாம்பழம்', banana: 'வாழைப்பழம்',
-    mother: 'அம்மா', father: 'அப்பா', house: 'வீடு', school: 'பள்ளி', book: 'புத்தகம்',
-    sun: 'சூரியன்', moon: 'நிலா', red: 'சிவப்பு', blue: 'நீலம்', green: 'பச்சை',
-    big: 'பெரிய', small: 'சிறிய', hello: 'வணக்கம்', 'thank you': 'நன்றி',
-  },
-  Telugu: {
-    cat: 'పిల్లి', dog: 'కుక్క', cow: 'ఆవు', bird: 'పక్షి', fish: 'చేప',
-    tree: 'చెట్టు', flower: 'పువ్వు', water: 'నీరు', milk: 'పాలు', rice: 'అన్నం',
-    apple: 'ఆపిల్', mango: 'మామిడి', banana: 'అరటిపండు',
-    mother: 'అమ్మ', father: 'నాన్న', house: 'ఇల్లు', school: 'పాఠశాల', book: 'పుస్తకం',
-    sun: 'సూర్యుడు', moon: 'చంద్రుడు', red: 'ఎరుపు', blue: 'నీలం', green: 'ఆకుపచ్చ',
-    big: 'పెద్ద', small: 'చిన్న', hello: 'నమస్కారం', 'thank you': 'ధన్యవాదాలు',
-  },
-};
-
-// Words from the WRONG language that must be replaced.
-// If user selected Marathi, these Hindi words appearing in output are wrong.
-const WRONG_LANGUAGE_WORDS = {
-  Marathi: {
-    'पेड़': 'झाड', 'पानी': 'पाणी', 'बिल्ली': 'मांजर', 'कुत्ता': 'कुत्रा',
-    'सेब': 'सफरचंद', 'आम': 'आंबा', 'केला': 'केळ', 'माँ': 'आई', 'पिता': 'बाबा',
-    'लड़का': 'मुलगा', 'लड़की': 'मुलगी', 'स्कूल': 'शाळा', 'किताब': 'पुस्तक',
-    'सूरज': 'सूर्य', 'चाँद': 'चंद्र', 'बारिश': 'पाऊस', 'नीला': 'निळा', 'हरा': 'हिरवा',
-    'पीला': 'पिवळा', 'बड़ा': 'मोठा', 'छोटा': 'लहान', 'बहन': 'बहीण', 'भाई': 'भाऊ',
-    'रोटी': 'भाकरी', 'चावल': 'भात', 'चिड़िया': 'पक्षी', 'मछली': 'मासा',
-    'आँख': 'डोळा', 'हाथ': 'हात', 'सिर': 'डोकं', 'दो': 'दोन', 'सफेद': 'पांढरा', 'काला': 'काळा',
-    'शुभ प्रभात': 'शुभ सकाळ', 'शुभ रात्रि': 'शुभ रात्री', 'आप कैसे हैं': 'तू कसा आहेस',
-    'मैं ठीक हूँ': 'मी ठीक आहे', 'नमस्ते': 'नमस्कार',
-  },
-  Hindi: {
-    'झाड': 'पेड़', 'पाणी': 'पानी', 'मांजर': 'बिल्ली', 'कुत्रा': 'कुत्ता',
-    'सफरचंद': 'सेब', 'आंबा': 'आम', 'केळ': 'केला', 'आई': 'माँ', 'बाबा': 'पिता',
-    'मुलगा': 'लड़का', 'मुलगी': 'लड़की', 'शाळा': 'स्कूल', 'पुस्तक': 'किताब',
-    'सूर्य': 'सूरज', 'चंद्र': 'चाँद', 'पाऊस': 'बारिश', 'निळा': 'नीला', 'हिरवा': 'हरा',
-    'पिवळा': 'पीला', 'मोठा': 'बड़ा', 'लहान': 'छोटा', 'बहीण': 'बहन', 'भाऊ': 'भाई',
-    'भाकरी': 'रोटी', 'भात': 'चावल', 'पक्षी': 'चिड़िया', 'मासा': 'मछली',
-    'डोळा': 'आँख', 'हात': 'हाथ', 'डोकं': 'सिर', 'दोन': 'दो', 'पांढरा': 'सफेद', 'काळा': 'काला',
-    'शुभ सकाळ': 'शुभ प्रभात', 'शुभ रात्री': 'शुभ रात्रि', 'तू कसा आहेस': 'आप कैसे हैं',
-    'मी ठीक आहे': 'मैं ठीक हूँ', 'नमस्कार': 'नमस्ते',
-  },
-};
-
-// Escape regex special chars
-function escapeRegex(str) {
-  return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-// Replace wrong-language words in a native-language string.
-function fixWrongLanguageText(text, language) {
-  if (!text || typeof text !== 'string') return text;
-  const normalized = normalizeLanguageName(language);
-  const corrections = WRONG_LANGUAGE_WORDS[normalized];
-  if (!corrections) return text;
-  let fixed = text;
-  // Sort longest first to replace multi-word phrases before single words.
-  const keys = Object.keys(corrections).sort((a, b) => b.length - a.length);
-  for (const wrong of keys) {
-    const right = corrections[wrong];
-    fixed = fixed.replace(new RegExp(escapeRegex(wrong), 'g'), right);
-  }
-  return fixed;
-}
-
-// Look up a verified native translation for a given English word.
-function lookupNativeWord(englishWord, language) {
-  if (!englishWord) return '';
-  const normalized = normalizeLanguageName(language);
-  const dict = ENGLISH_TO_NATIVE[normalized];
-  if (!dict) return '';
-  const key = String(englishWord).toLowerCase().trim();
-  return dict[key] || '';
-}
-
-const DAILY_SENTENCE_FALLBACKS = {
-  Marathi: [
-    { english: 'Good morning', native: 'शुभ सकाळ', transliteration: 'Shubh Sakal', usage: 'Say this when you meet someone in the morning' },
-    { english: 'Thank you', native: 'धन्यवाद', transliteration: 'Dhanyavaad', usage: 'Say this to show gratitude' },
-    { english: 'How are you?', native: 'तू कसा आहेस?', transliteration: 'Tu kasa ahes?', usage: 'Ask this to greet someone' },
-    { english: 'I am fine', native: 'मी ठीक आहे', transliteration: 'Mi theek ahe', usage: 'Reply when someone asks how you are' },
-    { english: 'Good night', native: 'शुभ रात्री', transliteration: 'Shubh Ratri', usage: 'Say this before going to sleep' },
-  ],
-  Hindi: [
-    { english: 'Good morning', native: 'शुभ प्रभात', transliteration: 'Shubh Prabhat', usage: 'Say this when you meet someone in the morning' },
-    { english: 'Thank you', native: 'धन्यवाद', transliteration: 'Dhanyavaad', usage: 'Say this to show gratitude' },
-    { english: 'How are you?', native: 'आप कैसे हैं?', transliteration: 'Aap kaise hain?', usage: 'Ask this to greet someone' },
-    { english: 'I am fine', native: 'मैं ठीक हूँ', transliteration: 'Main theek hoon', usage: 'Reply when someone asks how you are' },
-    { english: 'Good night', native: 'शुभ रात्रि', transliteration: 'Shubh Ratri', usage: 'Say this before going to sleep' },
-  ],
-  Tamil: [
-    { english: 'Good morning', native: 'காலை வணக்கம்', transliteration: 'Kaalai Vanakkam', usage: 'Say this when you meet someone in the morning' },
-    { english: 'Thank you', native: 'நன்றி', transliteration: 'Nandri', usage: 'Say this to show gratitude' },
-    { english: 'How are you?', native: 'நீங்கள் எப்படி இருக்கிறீர்கள்?', transliteration: 'Neengal eppadi irukkireergal?', usage: 'Ask this to greet someone' },
-    { english: 'I am fine', native: 'நான் நன்றாக இருக்கிறேன்', transliteration: 'Naan nandraga irukkiren', usage: 'Reply when someone asks how you are' },
-    { english: 'Good night', native: 'இனிய இரவு', transliteration: 'Iniya Iravu', usage: 'Say this before going to sleep' },
-  ],
-  Telugu: [
-    { english: 'Good morning', native: 'శుభోదయం', transliteration: 'Shubhodayam', usage: 'Say this when you meet someone in the morning' },
-    { english: 'Thank you', native: 'ధన్యవాదాలు', transliteration: 'Dhanyavaadalu', usage: 'Say this to show gratitude' },
-    { english: 'How are you?', native: 'మీరు ఎలా ఉన్నారు?', transliteration: 'Meeru elaa unnaaru?', usage: 'Ask this to greet someone' },
-    { english: 'I am fine', native: 'నేను బాగున్నాను', transliteration: 'Nenu baagunnanu', usage: 'Reply when someone asks how you are' },
-    { english: 'Good night', native: 'శుభ రాత్రి', transliteration: 'Shubha Raatri', usage: 'Say this before going to sleep' },
-  ],
-};
-
-function getDailySentenceFallback(language) {
-  return DAILY_SENTENCE_FALLBACKS[language] || DAILY_SENTENCE_FALLBACKS.Hindi;
-}
 
 const QUIZ_FALLBACKS = {
   vocabulary: [
@@ -501,7 +262,6 @@ function normalizeQuizQuestions(payload, category) {
 }
 
 function normalizeVocabularyWords(payload, language) {
-  const normalizedLang = normalizeLanguageName(language);
   const rawWords = Array.isArray(payload?.words) ? payload.words : [];
 
   const words = rawWords
@@ -510,37 +270,23 @@ function normalizeVocabularyWords(payload, language) {
         return null;
       }
 
-      const word = item.word.trim();
-      // Prefer verified native translation from our bank; fall back to LLM output with wrong-language fix.
-      const verifiedNative = lookupNativeWord(word, normalizedLang);
-      let meaning =
-        typeof item.meaning === 'string' && item.meaning.trim() ? item.meaning.trim() : '';
-      if (verifiedNative) {
-        meaning = verifiedNative;
-      } else if (meaning) {
-        meaning = fixWrongLanguageText(meaning, normalizedLang);
-      } else {
-        meaning = 'Meaning unavailable';
-      }
-
-      let example =
-        typeof item.example === 'string' && item.example.trim()
-          ? item.example.trim()
-          : `${word} means ${meaning.toLowerCase()} in English.`;
+      const meaning =
+        typeof item.meaning === 'string' && item.meaning.trim() ? item.meaning.trim() : 'Meaning unavailable';
 
       return {
-        word,
+        word: item.word.trim(),
         transliteration:
           typeof item.transliteration === 'string' && item.transliteration.trim()
             ? item.transliteration.trim()
-            : word,
+            : item.word.trim(),
         meaning,
-        example,
+        example:
+          typeof item.example === 'string' && item.example.trim()
+            ? item.example.trim()
+            : `${item.word.trim()} means ${meaning.toLowerCase()} in English.`,
       };
     })
     .filter(Boolean)
-    // Reject items where the meaning is not in the target script.
-    .filter(w => normalizedLang === 'English' || hasScriptChars(w.meaning, normalizedLang))
     .slice(0, 30);
 
   if (words.length >= 1) {
@@ -603,36 +349,33 @@ exports.chat = async (req, res) => {
   try {
     const { message, history } = req.body;
 
-    const systemPrompt = `You are BhashaAI - a friendly English learning tutor. You help users learn English through their native language.
-
-CORE PURPOSE: Help users learn ENGLISH. Detect their native language and teach English through it.
+    const systemPrompt = `You are a friendly conversational AI assistant who is fluent in all Indian and world languages.
 
 RULES:
-1. Detect the EXACT language the user is writing in. That is their native language.
-2. Reply in their native language BUT always teach English words and sentences.
-3. If user asks about a word, show: English word + meaning in their language + example sentence.
-4. Be encouraging, friendly and educational.
+1. Detect the EXACT language the user is writing in.
+2. Reply ONLY in that same language - naturally, correctly and fluently.
+3. Be natural, friendly and conversational.
+4. Do NOT give wrong, irrelevant or nonsensical responses.
 5. Do NOT mix up languages. Marathi is NOT Hindi. Tamil is NOT Telugu.
-6. If user writes in Romanized script (like "kasa ahes"), reply in Romanized too but teach English.
+6. If user writes in Romanized script (like "kasa ahes"), reply in Romanized script of THAT SAME language.
 
-MARATHI examples:
-- "झाड ला इंग्रजीत काय म्हणतात?" → "झाड ला इंग्रजीत TREE म्हणतात. Tree म्हणजे झाड. वाक्य: The tree is big. (झाड मोठे आहे.)"
-- "kasa ahes" → "Mi majat ahe! Tumhala English shikvayala tayar! 'How are you?' mhanje 'kasa ahes?'. Example: How are you today?"
-- "mala English shikaycha ahe" → "Chhan! Aaj apan navi English words shiku. 'Learn' mhanje 'shikne'. I want to learn = Mala shikaycha ahe."
+MARATHI examples (learn these patterns):
+- "kasa ahes" / "kasa aahes" = How are you → Reply: "Mi ekdam barobar ahe! Tumhi kase aahat?" (I am perfectly fine! How are you?)
+- "kay karto" = What are you doing → Reply: "Mi tumchi madad karayala tayar ahe!" (I am ready to help you!)
+- "dhanyawad" = Thank you → Reply: "Tumche swagat aahe!" (You're welcome!)
 
 HINDI examples:
-- "पानी को इंग्लिश में क्या बोलते हैं?" → "पानी को English में WATER कहते हैं। वाक्य: I drink water every day. (मैं रोज पानी पीता हूँ।)"
-- "namaste" → "Namaste! English mein hum 'Hello' ya 'Hi' bolte hain. Example: Hello, how are you?"
-- "mujhe English sikhni hai" → "Bahut accha! Aaj hum naye English words sikhenge. 'Learn' ka matlab hai 'sikhna'. I want to learn = Mujhe sikhna hai."
+- "kaise ho" = How are you → Reply: "Main bahut accha hoon! Aap kaise hain?" (I am very good! How are you?)
+- "namaste" = Hello → Reply: "Namaste! Kaise madad kar sakta hoon?" (Hello! How can I help?)
 
 ENGLISH examples:
-- "hello" → "Hello! I'm BhashaAI. I'll help you learn English! What's your native language? Type in your language and I'll teach you English through it!"
-- "how are you" → "I'm great! Ready to teach you English! Try asking me 'How do you say ___ in English?' in your language!"
+- "hey" / "hello" → Reply: "Hey! How can I help you today?"
+- "how are you" → Reply: "I'm doing great! How can I help you?"
 
 IMPORTANT: You MUST respond in this exact JSON format and nothing else:
-{"reply": "your response teaching English through user's native language", "translation": "English translation of your reply"}
+{"reply": "your natural conversational response in detected language", "translation": "English translation of your reply"}
 
-If the user is already writing in English, help them improve their English and set translation to the same text.
+If the user is already writing in English, set translation to the same text as reply.
 Return ONLY valid JSON. No markdown, no code fences, no extra text.`;
 
     // Build conversation history (last 5 messages)
@@ -685,7 +428,7 @@ exports.translate = async (req, res) => {
       return res.json({ success: false, error: 'Text is required' });
     }
 
-    const target = normalizeLanguageName(targetLanguage || 'English');
+    const target = targetLanguage || 'English';
     const prompt = `Translate the following text to ${target}. Return ONLY the translation, nothing else. No explanations, no quotes, just the translated text.
 
 Text: ${text}`;
@@ -703,8 +446,7 @@ Text: ${text}`;
 };
 
 exports.quiz = async (req, res) => {
-  let { language = 'Hindi' } = req.body || {};
-  language = normalizeLanguageName(language);
+  const { language = 'Hindi' } = req.body || {};
 
   console.log('[AI Quiz] Generating question for language:', language);
 
@@ -737,27 +479,30 @@ exports.quiz = async (req, res) => {
     ? `\nLANGUAGE ACCURACY (CRITICAL):\n${bank.note}\nVerified words: ${bank.words}\n${bank.wrong ? bank.wrong : ''}\nUse ONLY words from this list or words you are 100% certain are correct ${language}.`
     : '';
 
-  const systemPrompt = `You are an English learning quiz generator for BhashaAI app.
-The student's native language is ${language}. They want to LEARN ENGLISH through ${language}.
+  const systemPrompt = `You are a ${language} language learning quiz generator for BhashaAI app.
+The student speaks English and is learning ${language}.
 
-You generate ONE quiz question IN ${language} asking about the English meaning/translation.
+You generate ONE quiz question. Randomly pick one of these 3 types:
+1. WORD: Show an English word → 4 ${language} translation options
+2. SENTENCE: Show an English sentence → 4 ${language} translation options
+3. FILL_BLANK: Show English sentence with a blank "Good ___ (morning)" → 4 ${language} options for the blank
 
 JSON FORMAT (strict):
 {
-  "display": "question in ${language} script asking English meaning",
+  "display": "The English word or sentence shown big to the user",
   "question_type": "word" or "sentence" or "fill_blank",
-  "options": ["correct English word/sentence", "wrong English 1", "wrong English 2", "wrong English 3"],
+  "options": ["correct ${language} answer", "wrong1", "wrong2", "wrong3"],
   "correct": 0,
-  "explanation": "short explanation in ${language}"
+  "explanation": "Short English explanation"
 }
 
 RULES:
-- "display": ALWAYS in ${language} script. This is the question shown to the user.
-- "options": ALWAYS in ENGLISH. These are the answer choices.
+- "display": ALWAYS in English. This is shown big and bold to the user.
+- "options": ALWAYS in ${language}. For non-Latin scripts add transliteration in brackets.
 - "correct": Always 0 (frontend shuffles).
-- "explanation": ALWAYS in ${language} with English translation.
-- The quiz tests ${language} → English translation.
-- NEVER put English in display. NEVER put ${language} in options.${bankSection}
+- "explanation": ALWAYS in English.
+- All 4 options must be real ${language} words/sentences. NEVER mix languages.
+- NEVER use Hindi words for Marathi or vice versa.${bankSection}
 
 Return ONLY valid JSON. No markdown, no extra text.`;
 
@@ -766,33 +511,30 @@ Return ONLY valid JSON. No markdown, no extra text.`;
   // Examples per language for pattern matching
   const examples = {
     Marathi: `Examples:
-Word: {"display":"झाड याचा इंग्रजी अर्थ काय?","question_type":"word","options":["Tree","Flower","Water","House"],"correct":0,"explanation":"झाड = Tree इंग्रजीत"}
-Sentence: {"display":"मी शाळेत जातो = ?","question_type":"sentence","options":["I go to school","I go to market","I go home","I play"],"correct":0,"explanation":"मी शाळेत जातो = I go to school"}
-Fill: {"display":"सूर्य = The ___ is in the sky","question_type":"fill_blank","options":["Sun","Moon","Star","Cloud"],"correct":0,"explanation":"सूर्य = Sun इंग्रजीत"}`,
+Word: {"display":"Tree","question_type":"word","options":["झाड (Zaad)","फूल (Phool)","पक्षी (Pakshi)","नदी (Nadi)"],"correct":0,"explanation":"Tree is 'झाड' (Zaad) in Marathi."}
+Sentence: {"display":"I go to school","question_type":"sentence","options":["मी शाळेत जातो (Mi shalet jaato)","मी बाजारात जातो (Mi bajarat jaato)","मी घरी जातो (Mi ghari jaato)","मी खेळतो (Mi khelto)"],"correct":0,"explanation":"'I go to school' = 'मी शाळेत जातो' in Marathi."}
+Fill: {"display":"Good ___ (morning)","question_type":"fill_blank","options":["सकाळ (Sakaal)","संध्याकाळ (Sandhyakaal)","रात्र (Ratra)","दुपार (Dupar)"],"correct":0,"explanation":"Good morning = शुभ सकाळ in Marathi."}`,
     Hindi: `Examples:
-Word: {"display":"पानी का अंग्रेजी अर्थ क्या है?","question_type":"word","options":["Water","Fire","Air","Earth"],"correct":0,"explanation":"पानी = Water in English"}
-Sentence: {"display":"मैं स्कूल जाता हूँ = ?","question_type":"sentence","options":["I go to school","I eat food","I drink water","I sleep"],"correct":0,"explanation":"मैं स्कूल जाता हूँ = I go to school"}
-Fill: {"display":"सूरज = The ___ is bright","question_type":"fill_blank","options":["Sun","Moon","Star","Cloud"],"correct":0,"explanation":"सूरज = Sun अंग्रेजी में"}`,
-    Tamil: `Examples:
-Word: {"display":"மரம் என்பதற்கு ஆங்கிலத்தில் என்ன?","question_type":"word","options":["Tree","Flower","River","Mountain"],"correct":0,"explanation":"மரம் = Tree ஆங்கிலத்தில்"}`,
-    Telugu: `Examples:
-Word: {"display":"చెట్టు అంటే ఆంగ్లంలో ఏమిటి?","question_type":"word","options":["Tree","Flower","River","Mountain"],"correct":0,"explanation":"చెట్టు = Tree ఆంగ్లంలో"}`,
+Word: {"display":"Water","question_type":"word","options":["पानी (Pani)","आग (Aag)","हवा (Hawa)","मिट्टी (Mitti)"],"correct":0,"explanation":"Water is 'पानी' (Pani) in Hindi."}
+Sentence: {"display":"I eat food","question_type":"sentence","options":["मैं खाना खाता हूँ (Main khana khata hoon)","मैं पानी पीता हूँ (Main pani peeta hoon)","मैं सोता हूँ (Main sota hoon)","मैं खेलता हूँ (Main khelta hoon)"],"correct":0,"explanation":"'I eat food' = 'मैं खाना खाता हूँ' in Hindi."}`,
+    Spanish: `Examples:
+Word: {"display":"Cat","question_type":"word","options":["Gato","Perro","Vaca","Caballo"],"correct":0,"explanation":"Cat is 'Gato' in Spanish."}
+Sentence: {"display":"I go to school","question_type":"sentence","options":["Yo voy a la escuela","Yo como comida","Yo bebo agua","Yo duermo"],"correct":0,"explanation":"'I go to school' = 'Yo voy a la escuela' in Spanish."}`,
     English: `Examples:
-Word: {"display":"What does 'Happy' mean?","question_type":"word","options":["Joyful","Angry","Tired","Hungry"],"correct":0,"explanation":"Happy means joyful or glad."}`,
+Word: {"display":"Happy","question_type":"word","options":["Joyful","Angry","Tired","Hungry"],"correct":0,"explanation":"Happy means joyful."}`,
   };
 
   const example = examples[language] || examples.English;
 
-  const userPrompt = `Generate 1 quiz question for someone whose native language is ${language} and is learning English.
-The question must be IN ${language}. The answer options must be in ENGLISH.
+  const userPrompt = `Generate 1 quiz question for someone learning ${language}.
 Randomly pick type: word, sentence, or fill_blank.
 Topics: fruits, animals, colors, numbers, greetings, family, food, body parts, nature, daily activities, simple sentences.
-${bank ? `Use verified ${language} words from: ${bank.words}` : ''}
+${bank ? `Use ONLY verified ${language} words: ${bank.words}` : ''}
 
 ${example}
 
 Return ONLY JSON:
-{"display":"...in ${language}...","question_type":"...","options":["English option 1","English option 2","English option 3","English option 4"],"correct":0,"explanation":"...in ${language}..."}
+{"display":"...","question_type":"...","options":["...","...","...","..."],"correct":0,"explanation":"..."}
 
 Seed: ${seed}`;
 
@@ -863,42 +605,42 @@ Seed: ${seed}`;
 function getQuizFallback(language) {
   const fallbacks = {
     Marathi: [
-      { display: 'मांजर याचा इंग्रजी अर्थ काय?', question_type: 'word', options: ['Cat', 'Dog', 'Cow', 'Horse'], correct: 0, explanation: 'मांजर = Cat इंग्रजीत' },
-      { display: 'झाड याचा इंग्रजी अर्थ काय?', question_type: 'word', options: ['Tree', 'Flower', 'Bird', 'River'], correct: 0, explanation: 'झाड = Tree इंग्रजीत' },
-      { display: 'पाणी याचा इंग्रजी अर्थ काय?', question_type: 'word', options: ['Water', 'Milk', 'Tea', 'Rice'], correct: 0, explanation: 'पाणी = Water इंग्रजीत' },
-      { display: 'मी शाळेत जातो = ?', question_type: 'sentence', options: ['I go to school', 'I go to market', 'I go home', 'I play'], correct: 0, explanation: 'मी शाळेत जातो = I go to school' },
-      { display: 'आई याचा इंग्रजी अर्थ काय?', question_type: 'word', options: ['Mother', 'Father', 'Boy', 'Girl'], correct: 0, explanation: 'आई = Mother इंग्रजीत' },
-      { display: 'आंबा याचा इंग्रजी अर्थ काय?', question_type: 'word', options: ['Mango', 'Banana', 'Apple', 'Grapes'], correct: 0, explanation: 'आंबा = Mango इंग्रजीत' },
-      { display: 'सूर्य = The ___ is in the sky', question_type: 'fill_blank', options: ['Sun', 'Moon', 'Star', 'Cloud'], correct: 0, explanation: 'सूर्य = Sun इंग्रजीत' },
+      { display: 'Cat', question_type: 'word', options: ['मांजर (Manjar)', 'कुत्रा (Kutra)', 'गाय (Gaay)', 'घोडा (Ghoda)'], correct: 0, explanation: "Cat is 'मांजर' (Manjar) in Marathi." },
+      { display: 'Tree', question_type: 'word', options: ['झाड (Zaad)', 'फूल (Phool)', 'पक्षी (Pakshi)', 'नदी (Nadi)'], correct: 0, explanation: "Tree is 'झाड' (Zaad) in Marathi." },
+      { display: 'Water', question_type: 'word', options: ['पाणी (Paani)', 'दूध (Doodh)', 'चहा (Chaha)', 'भात (Bhaat)'], correct: 0, explanation: "Water is 'पाणी' (Paani) in Marathi." },
+      { display: 'I go to school', question_type: 'sentence', options: ['मी शाळेत जातो (Mi shalet jaato)', 'मी बाजारात जातो (Mi bajarat jaato)', 'मी घरी जातो (Mi ghari jaato)', 'मी खेळतो (Mi khelto)'], correct: 0, explanation: "'I go to school' = 'मी शाळेत जातो' in Marathi." },
+      { display: 'Mother', question_type: 'word', options: ['आई (Aai)', 'बाबा (Baba)', 'मुलगा (Mulga)', 'मुलगी (Mulgi)'], correct: 0, explanation: "Mother is 'आई' (Aai) in Marathi." },
+      { display: 'Mango', question_type: 'word', options: ['आंबा (Amba)', 'केळ (Kel)', 'सफरचंद (Safarchand)', 'द्राक्षे (Draksha)'], correct: 0, explanation: "Mango is 'आंबा' (Amba) in Marathi." },
+      { display: 'Good ___ (morning)', question_type: 'fill_blank', options: ['सकाळ (Sakaal)', 'संध्याकाळ (Sandhyakaal)', 'रात्र (Ratra)', 'दुपार (Dupar)'], correct: 0, explanation: "Good morning = शुभ सकाळ in Marathi." },
     ],
     Hindi: [
-      { display: 'पानी का अंग्रेजी अर्थ क्या है?', question_type: 'word', options: ['Water', 'Fire', 'Air', 'Earth'], correct: 0, explanation: 'पानी = Water अंग्रेजी में' },
-      { display: 'बिल्ली का अंग्रेजी अर्थ क्या है?', question_type: 'word', options: ['Cat', 'Dog', 'Cow', 'Horse'], correct: 0, explanation: 'बिल्ली = Cat अंग्रेजी में' },
-      { display: 'पेड़ का अंग्रेजी अर्थ क्या है?', question_type: 'word', options: ['Tree', 'Flower', 'Bird', 'River'], correct: 0, explanation: 'पेड़ = Tree अंग्रेजी में' },
-      { display: 'मैं खाना खाता हूँ = ?', question_type: 'sentence', options: ['I eat food', 'I drink water', 'I sleep', 'I play'], correct: 0, explanation: 'मैं खाना खाता हूँ = I eat food' },
-      { display: 'आम का अंग्रेजी अर्थ क्या है?', question_type: 'word', options: ['Mango', 'Apple', 'Banana', 'Grapes'], correct: 0, explanation: 'आम = Mango अंग्रेजी में' },
-      { display: 'सूरज = The ___ is bright', question_type: 'fill_blank', options: ['Sun', 'Moon', 'Star', 'Cloud'], correct: 0, explanation: 'सूरज = Sun अंग्रेजी में' },
+      { display: 'Water', question_type: 'word', options: ['पानी (Pani)', 'आग (Aag)', 'हवा (Hawa)', 'मिट्टी (Mitti)'], correct: 0, explanation: "Water is 'पानी' (Pani) in Hindi." },
+      { display: 'Cat', question_type: 'word', options: ['बिल्ली (Billi)', 'कुत्ता (Kutta)', 'गाय (Gaay)', 'घोड़ा (Ghoda)'], correct: 0, explanation: "Cat is 'बिल्ली' (Billi) in Hindi." },
+      { display: 'Tree', question_type: 'word', options: ['पेड़ (Ped)', 'फूल (Phool)', 'चिड़िया (Chidiya)', 'नदी (Nadi)'], correct: 0, explanation: "Tree is 'पेड़' (Ped) in Hindi." },
+      { display: 'I eat food', question_type: 'sentence', options: ['मैं खाना खाता हूँ (Main khana khata hoon)', 'मैं पानी पीता हूँ (Main pani peeta hoon)', 'मैं सोता हूँ (Main sota hoon)', 'मैं खेलता हूँ (Main khelta hoon)'], correct: 0, explanation: "'I eat food' = 'मैं खाना खाता हूँ' in Hindi." },
+      { display: 'Mango', question_type: 'word', options: ['आम (Aam)', 'सेब (Seb)', 'केला (Kela)', 'अंगूर (Angoor)'], correct: 0, explanation: "Mango is 'आम' (Aam) in Hindi." },
+      { display: 'Good ___ (morning)', question_type: 'fill_blank', options: ['सुबह (Subah)', 'शाम (Shaam)', 'रात (Raat)', 'दोपहर (Dopahar)'], correct: 0, explanation: "Good morning = शुभ प्रभात / सुप्रभात in Hindi." },
     ],
-    Tamil: [
-      { display: 'மரம் என்பதற்கு ஆங்கிலத்தில் என்ன?', question_type: 'word', options: ['Tree', 'Flower', 'River', 'Mountain'], correct: 0, explanation: 'மரம் = Tree ஆங்கிலத்தில்' },
-      { display: 'பூனை என்பதற்கு ஆங்கிலத்தில் என்ன?', question_type: 'word', options: ['Cat', 'Dog', 'Cow', 'Horse'], correct: 0, explanation: 'பூனை = Cat ஆங்கிலத்தில்' },
+    Spanish: [
+      { display: 'Hello', question_type: 'word', options: ['Hola', 'Adiós', 'Gracias', 'Amigo'], correct: 0, explanation: "'Hola' means 'hello' in Spanish." },
+      { display: 'Cat', question_type: 'word', options: ['Gato', 'Perro', 'Vaca', 'Caballo'], correct: 0, explanation: "'Gato' means 'cat' in Spanish." },
+      { display: 'I go to school', question_type: 'sentence', options: ['Yo voy a la escuela', 'Yo como comida', 'Yo bebo agua', 'Yo duermo'], correct: 0, explanation: "'I go to school' = 'Yo voy a la escuela' in Spanish." },
     ],
-    Telugu: [
-      { display: 'చెట్టు అంటే ఆంగ్లంలో ఏమిటి?', question_type: 'word', options: ['Tree', 'Flower', 'River', 'Mountain'], correct: 0, explanation: 'చెట్టు = Tree ఆంగ్లంలో' },
-      { display: 'పిల్లి అంటే ఆంగ్లంలో ఏమిటి?', question_type: 'word', options: ['Cat', 'Dog', 'Cow', 'Horse'], correct: 0, explanation: 'పిల్లి = Cat ఆంగ్లంలో' },
+    French: [
+      { display: 'Thank you', question_type: 'word', options: ['Merci', 'Bonjour', 'Au revoir', 'Oui'], correct: 0, explanation: "'Merci' means 'thank you' in French." },
+      { display: 'Cat', question_type: 'word', options: ['Chat', 'Chien', 'Vache', 'Cheval'], correct: 0, explanation: "'Chat' means 'cat' in French." },
     ],
     English: [
-      { display: 'What does "Happy" mean?', question_type: 'word', options: ['Joyful', 'Angry', 'Tired', 'Hungry'], correct: 0, explanation: 'Happy means joyful or glad.' },
-      { display: 'She is running = ?', question_type: 'sentence', options: ['She moves fast on foot', 'She is sleeping', 'She is eating', 'She is reading'], correct: 0, explanation: 'Running means moving fast on foot.' },
+      { display: 'Happy', question_type: 'word', options: ['Joyful', 'Angry', 'Tired', 'Hungry'], correct: 0, explanation: "'Happy' means joyful or glad." },
+      { display: 'She is running', question_type: 'sentence', options: ['She moves fast on foot', 'She is sleeping', 'She is eating', 'She is reading'], correct: 0, explanation: "'Running' means moving fast on foot." },
     ],
   };
-  const set = fallbacks[normalizeLanguageName(language)] || fallbacks.English;
+  const set = fallbacks[language] || fallbacks.English;
   return set[Math.floor(Math.random() * set.length)];
 }
 
 exports.vocabulary = async (req, res) => {
-  let { language = 'Hindi', count = 10, category = '', exclude = [] } = req.body || {};
-  language = normalizeLanguageName(language);
+  const { language = 'Hindi', count = 10, category = '', exclude = [] } = req.body || {};
   const wordCount = Math.min(Math.max(parseInt(count) || 10, 1), 30);
 
   const categoryLine = category ? `- All words must belong to the category: "${category}".` : '- Use a mix of everyday categories.';
@@ -907,34 +649,27 @@ exports.vocabulary = async (req, res) => {
     : '';
 
   try {
-    const langGuide = buildLanguageGuide(language);
-    const prompt = `You are creating English vocabulary flashcards for a BEGINNER whose native language is ${language}.
-The student wants to learn ENGLISH through ${language}.
+    const prompt = `You are creating vocabulary flashcards for ${language}.
 Return only valid JSON with this exact shape:
 {
   "words": [
     {
-      "word": "English word to learn",
-      "transliteration": "pronunciation guide",
-      "meaning": "CORRECT ${language} meaning in native script",
-      "example": "Simple English sentence using the word",
-      "example_native": "CORRECT ${language} translation of the example sentence"
+      "word": "string",
+      "transliteration": "string",
+      "meaning": "string",
+      "example": "string"
     }
   ]
 }
 
 Rules:
-- Generate exactly ${wordCount} simple beginner-level English vocabulary words.
+- Generate exactly ${wordCount} vocabulary words.
 ${categoryLine}
 ${excludeLine}
-- ONLY use simple common words from these categories: fruits, animals, colors, numbers, greetings, family members, body parts, food, school items
-- NO complex, advanced, or uncommon words
-- "word" must be a simple English word (cat, dog, apple, water, house, school, mother, tree).
-- "transliteration" is Roman pronunciation of the ${language} native word.
-- "meaning" MUST be the CORRECT ${language} translation in native script. Marathi speakers get Marathi words, Hindi speakers get Hindi words. NEVER mix them up.
-- "example" is a simple English sentence using the word.
-- "example_native" is the CORRECT full ${language} translation of the example.
-${langGuide}`;
+- If the language uses a non-Latin script, "word" must use the native script and "transliteration" must be Romanized.
+- "meaning" must be the English meaning.
+- "example" should be a short natural example in the target language, optionally followed by a short English gloss only if needed.
+- Prefer beginner-friendly, practical vocabulary.`;
 
     console.log('[AI Vocabulary] Request:', { language, count: wordCount, category });
 
@@ -1033,88 +768,71 @@ exports.correct = async (req, res) => {
 };
 
 exports.fillBlank = async (req, res) => {
-  let { language = 'Hindi' } = req.body || {};
-  language = normalizeLanguageName(language);
+  const { words = [] } = req.body || {};
+
+  if (!words.length) {
+    return res.json({ success: false, error: 'Words required' });
+  }
 
   try {
-    console.log('[AI FillBlank] Request:', { language });
+    const wordList = words.slice(0, 15).map(w => w.english || w).join(', ');
 
-    // Generate in 3 batches of 10
-    const allSentences = [];
-    const TARGET = 30;
-    const MAX_BATCHES = 4;
+    const prompt = `Generate exactly 10 fill-in-the-blank sentences for vocabulary practice.
+Use ONLY these words: ${wordList}
 
-    for (let batch = 0; batch < MAX_BATCHES && allSentences.length < TARGET; batch++) {
-      const already = allSentences.map(s => s.blank_word).join(', ');
-      const excludeLine = already ? `\nDo NOT reuse these words: ${already}` : '';
-
-      const langGuide = buildLanguageGuide(language);
-      const prompt = `Generate exactly 10 simple fill-in-the-blank English sentences for a beginner whose native language is ${language} and is learning English.
-
-Return ONLY valid JSON:
+Return ONLY valid JSON with this exact shape:
 {
   "sentences": [
     {
-      "sentence": "I ___ to school every day.",
-      "sentence_native": "CORRECT ${language} translation of the full sentence",
-      "blank_word": "go",
-      "options": ["go", "eat", "sleep", "run"],
+      "sentence": "The ___ is red and sweet.",
+      "blank_word": "apple",
+      "options": ["apple", "mango", "cat", "dog"],
       "correct": 0
     }
   ]
 }
 
 Rules:
-- Simple everyday beginner sentences ONLY
-- Topics: going to school, eating food, playing, family, animals, fruits, colors, weather, greetings
-- Words must be simple: go, eat, run, play, sit, stand, read, write, cat, dog, water, milk, red, blue, big, small, mother, father, school, book, apple, mango
-- "sentence" is English with one "___" blank
-- "sentence_native" is the FULL sentence translated to CORRECT ${language} (no blank, complete sentence). For Marathi use Marathi ONLY (मी दररोज शाळेत जातो). For Hindi use Hindi ONLY (मैं रोज स्कूल जाता हूँ). NEVER mix languages.
-- "options" has 4 simple English words, correct at index 0
-- NO complex/romantic/advanced words like honeymoon, romantic, anniversary
-- Every sentence must be different${excludeLine}
-${langGuide}
+- Each sentence must have exactly one blank shown as "___"
+- "blank_word" is the correct word that fills the blank
+- "options" must have exactly 4 choices, including the correct one
+- "correct" is the zero-based index of the correct option
+- Sentences should be simple, suitable for school students
+- Use different words from the list for each sentence
+- Make sentences fun and engaging
 - Return ONLY valid JSON, no markdown`;
 
-      const text = await generateModelText(prompt);
-      const parsed = parseJsonResponse(text);
+    const text = await generateModelText(prompt);
+    const parsed = parseJsonResponse(text);
 
-      if (parsed && Array.isArray(parsed.sentences)) {
-        const batchSentences = parsed.sentences
-          .filter(s => s.sentence && s.blank_word && Array.isArray(s.options) && s.options.length === 4)
-          .filter(s => !allSentences.some(existing => existing.blank_word === s.blank_word))
-          .map(s => ({
-            sentence: s.sentence,
-            sentence_native: fixWrongLanguageText(s.sentence_native || '', language),
-            blank_word: s.blank_word,
-            options: s.options,
-            correct: typeof s.correct === 'number' ? s.correct : 0,
-          }))
-          // Reject items where the native sentence is not in the target script.
-          .filter(s => !s.sentence_native || hasScriptChars(s.sentence_native, language))
-          .slice(0, TARGET - allSentences.length);
-        allSentences.push(...batchSentences);
-        console.log(`[AI FillBlank] Batch ${batch + 1}: got ${batchSentences.length}, total: ${allSentences.length}`);
-      }
+    if (parsed && Array.isArray(parsed.sentences) && parsed.sentences.length > 0) {
+      const sentences = parsed.sentences
+        .filter(s => s.sentence && s.blank_word && Array.isArray(s.options) && s.options.length === 4)
+        .slice(0, 10)
+        .map(s => ({
+          sentence: s.sentence,
+          blank_word: s.blank_word,
+          options: s.options,
+          correct: typeof s.correct === 'number' ? s.correct : 0,
+        }));
+
+      return res.json({ success: true, sentences });
     }
 
-    if (allSentences.length > 0) {
-      return res.json({ success: true, sentences: allSentences.slice(0, TARGET) });
-    }
+    // Fallback: generate simple sentences from words
+    const fallbackSentences = words.slice(0, 10).map((w, i) => {
+      const word = w.english || w;
+      const otherWords = words.filter((_, j) => j !== i).slice(0, 3).map(x => x.english || x);
+      while (otherWords.length < 3) otherWords.push('thing');
+      const options = [word, ...otherWords].sort(() => Math.random() - 0.5);
+      return {
+        sentence: `The ___ is something we know.`,
+        blank_word: word,
+        options,
+        correct: options.indexOf(word),
+      };
+    });
 
-    // Fallback simple sentences
-    const fallbackSentences = [
-      { sentence: 'I ___ to school.', sentence_native: '', blank_word: 'go', options: ['go', 'eat', 'fly', 'swim'], correct: 0 },
-      { sentence: 'The ___ is big.', sentence_native: '', blank_word: 'dog', options: ['dog', 'pen', 'key', 'cup'], correct: 0 },
-      { sentence: 'I drink ___ every day.', sentence_native: '', blank_word: 'water', options: ['water', 'stone', 'chair', 'book'], correct: 0 },
-      { sentence: 'She is my ___.', sentence_native: '', blank_word: 'mother', options: ['mother', 'table', 'door', 'lamp'], correct: 0 },
-      { sentence: 'The ___ is red.', sentence_native: '', blank_word: 'apple', options: ['apple', 'fish', 'shoe', 'ring'], correct: 0 },
-      { sentence: 'I ___ food at home.', sentence_native: '', blank_word: 'eat', options: ['eat', 'fly', 'cut', 'sing'], correct: 0 },
-      { sentence: 'The cat is ___.', sentence_native: '', blank_word: 'small', options: ['small', 'loud', 'fast', 'dry'], correct: 0 },
-      { sentence: 'I read a ___.', sentence_native: '', blank_word: 'book', options: ['book', 'tree', 'road', 'wall'], correct: 0 },
-      { sentence: 'The ___ is hot today.', sentence_native: '', blank_word: 'sun', options: ['sun', 'ice', 'bed', 'bag'], correct: 0 },
-      { sentence: 'I ___ with my friends.', sentence_native: '', blank_word: 'play', options: ['play', 'cook', 'wash', 'pull'], correct: 0 },
-    ];
     res.json({ success: true, sentences: fallbackSentences });
   } catch (error) {
     console.error('[AI FillBlank] Error:', error.message);
@@ -1123,10 +841,9 @@ ${langGuide}
 };
 
 exports.dailyWords = async (req, res) => {
-  let { language = 'Hindi', date, level = 'school', excludeWords = [] } = req.body || {};
-  language = normalizeLanguageName(language);
+  const { language = 'Hindi', date, level = 'school', excludeWords = [] } = req.body || {};
   const today = date || new Date().toISOString().split('T')[0];
-  const cacheKey = `${CACHE_VERSION}_${today}_${language.toLowerCase()}_${level}`;
+  const cacheKey = `${today}_${language.toLowerCase()}_${level}`;
 
   // Return cached words for same day+language+level
   if (dailyWordsCache.has(cacheKey)) {
@@ -1138,9 +855,13 @@ exports.dailyWords = async (req, res) => {
     ? `\nIMPORTANT: Do NOT include any of these words (already learned): ${excludeWords.slice(0, 200).join(', ')}.`
     : '';
 
-  const levelDesc = 'Generate simple beginner-level English vocabulary words. ONLY use very simple, common words like: cat, dog, cow, bird, fish, apple, mango, banana, orange, red, blue, green, yellow, mother, father, sister, brother, water, milk, bread, rice, book, pen, bag, tree, flower, sun, moon, house, school, hand, eye, head, one, two, three, hello, thank you, goodbye. NO complex or advanced words.';
+  const levelDesc = level === 'adults'
+    ? 'Generate advanced/intermediate vocabulary words for adult learners. Include professional, business, medical, legal, technology, travel, and sophisticated everyday words. Words should be useful for working professionals and adults.'
+    : 'Generate simple school-level vocabulary words for young students. Words should be common everyday words a school kid would use. Pick from: Animals, Fruits, Vegetables, Colors, Numbers, Body Parts, Family, School Items, Food, Nature.';
 
-  const categoryList = 'Animals, Fruits, Colors, Numbers, Family, School Items, Food, Nature, Greetings';
+  const categoryList = level === 'adults'
+    ? 'Business, Technology, Health, Travel, Emotions, Food, Nature, Society, Science, Daily Life'
+    : 'Animals, Fruits, Vegetables, Colors, Numbers, Body Parts, Family, School Items, Food, Nature';
 
   // Generate batches of 10 until we have 30 unique words (max 5 attempts)
   const allWords = [];
@@ -1157,13 +878,10 @@ exports.dailyWords = async (req, res) => {
         ? `\nDo NOT repeat these words: ${alreadyGenerated}.`
         : '';
 
-      const langGuide = buildLanguageGuide(language);
       const prompt = `${levelDesc}
-The student's native language is ${language}. They are learning ENGLISH.
-Generate exactly 10 English vocabulary words with CORRECT ${language} meanings.
+Generate exactly 10 unique ${language} vocabulary words.
 Mix different categories. Every word must be different.
 ${excludeLine}${batchExclude}
-${langGuide}
 
 Return ONLY valid JSON with this exact shape:
 {
@@ -1174,7 +892,6 @@ Return ONLY valid JSON with this exact shape:
       "transliteration": "Seb",
       "meaning": "A sweet red fruit",
       "example": "I eat an apple every day.",
-      "example_native": "मैं रोज एक सेब खाता हूँ।",
       "emoji": "🍎",
       "category": "Fruits"
     }
@@ -1182,16 +899,15 @@ Return ONLY valid JSON with this exact shape:
 }
 
 Rules:
-- "english" is the simple English word to learn (shown BIG on flashcard) e.g. "Apple", "Dog", "Mother"
-- "native" is the CORRECT ${language} translation in native script. Must be complete, properly spelled. Marathi: cat=मांजर, dog=कुत्रा, tree=झाड, apple=सफरचंद, mother=आई, father=बाबा, school=शाळा. Hindi: cat=बिल्ली, dog=कुत्ता, tree=पेड़, apple=सेब, mother=माँ, father=पिता, school=स्कूल. NEVER use Hindi words for Marathi users.
-- "transliteration" is the Romanized pronunciation of the English word
-- "meaning" is a simple meaning in ${language} (so the student understands in their language)
-- "example" is a simple English sentence using the word (student reads this to learn)
-- "example_native" is the same sentence translated to ${language}
+- "english" is the English word (e.g. "Apple", "Dog", "Mother")
+- "native" is the FULL CORRECT word in ${language} native script. It must be a complete, properly spelled word in the ${language} script. Do NOT use abbreviations or single characters. For example in Hindi: "सेब" not "स", in Nepali: "स्याउ" not "स", in Marathi: "सफरचंद" not "स"
+- "transliteration" is the full Romanized pronunciation (e.g. "Seb", "Syaau", "Safarchand")
+- "meaning" is a simple English meaning (4-8 words)
+- "example" is a simple English sentence using the word
 - "emoji" is a single emoji that represents the word
 - "category" must be one of: ${categoryList}
 - All 10 words MUST be unique and from different categories
-- IMPORTANT: The student is learning ENGLISH. "english" field is what they learn. "native" and "meaning" help them understand in ${language}.
+- IMPORTANT: Double-check every "native" word is the correct ${language} translation, fully spelled in ${language} script
 - Return ONLY valid JSON, no markdown, no code fences`;
 
       const text = await generateModelText(prompt);
@@ -1201,25 +917,16 @@ Rules:
         const batchWords = parsed.words
           .filter(w => w.english && w.native && w.meaning)
           .filter(w => !allWords.some(existing => existing.english.toLowerCase() === w.english.toLowerCase()))
-          .map(w => {
-            const english = w.english || '';
-            // Override with verified native translation if we have one.
-            const verifiedNative = lookupNativeWord(english, language);
-            const native = verifiedNative || fixWrongLanguageText(w.native || '', language);
-            const meaning = verifiedNative || fixWrongLanguageText(w.meaning || '', language);
-            return {
-              english,
-              native,
-              transliteration: w.transliteration || english,
-              meaning,
-              example: w.example || `This is ${english}.`,
-              emoji: w.emoji || '📚',
-              category: w.category || 'General',
-            };
-          })
-          // Reject items where the native text is not in the target script.
-          .filter(w => hasScriptChars(w.native, language))
-          .slice(0, remaining);
+          .slice(0, remaining)
+          .map(w => ({
+            english: w.english || '',
+            native: w.native || '',
+            transliteration: w.transliteration || w.english || '',
+            meaning: w.meaning || '',
+            example: w.example || `This is ${w.english}.`,
+            emoji: w.emoji || '📚',
+            category: w.category || 'General',
+          }));
         allWords.push(...batchWords);
         console.log(`[AI DailyWords] Batch ${batch + 1}: got ${batchWords.length}, total: ${allWords.length}`);
       }
@@ -1239,81 +946,5 @@ Rules:
   } catch (error) {
     console.error('[AI DailyWords] Error:', error.message);
     res.json({ success: false, words: [], date: today });
-  }
-};
-
-// In-memory cache for daily sentences
-const dailySentencesCache = new Map();
-
-exports.dailySentences = async (req, res) => {
-  let { language = 'Hindi' } = req.body || {};
-  language = normalizeLanguageName(language);
-  const today = new Date().toISOString().split('T')[0];
-  const cacheKey = `${CACHE_VERSION}_${today}_${language.toLowerCase()}_sentences`;
-
-  if (dailySentencesCache.has(cacheKey)) {
-    console.log('[AI DailySentences] Cache hit:', cacheKey);
-    return res.json({ success: true, sentences: dailySentencesCache.get(cacheKey) });
-  }
-
-  try {
-    console.log('[AI DailySentences] Request:', { language });
-
-    const langGuide = buildLanguageGuide(language);
-    const prompt = `Generate exactly 5 simple daily English phrases/sentences for a beginner whose native language is ${language} and is learning English.
-
-Return ONLY valid JSON:
-{
-  "sentences": [
-    {
-      "english": "Good morning",
-      "native": "CORRECT ${language} translation in native script",
-      "transliteration": "Roman pronunciation of the ${language} translation",
-      "usage": "Say this when you meet someone in the morning"
-    }
-  ]
-}
-
-Rules:
-- Simple everyday greetings and phrases ONLY
-- Pick from: greetings (good morning, good night, thank you, sorry, please), daily phrases (how are you, I am fine, see you later, excuse me, welcome), common sentences (my name is, I like, I want, I need, let's go)
-- "english" is the English phrase (what they learn)
-- "native" MUST be the CORRECT ${language} translation in native script. For Marathi use Marathi (शुभ सकाळ, धन्यवाद, तू कसा आहेस?). For Hindi use Hindi (शुभ प्रभात, धन्यवाद, आप कैसे हैं?). NEVER confuse Marathi with Hindi.
-- "transliteration" is Romanized pronunciation of the ${language} translation
-- "usage" is a short tip in English about when to use this phrase
-- All 5 must be different and useful for daily life
-${langGuide}
-- Return ONLY valid JSON, no markdown`;
-
-    const text = await generateModelText(prompt);
-    const parsed = parseJsonResponse(text);
-
-    if (parsed && Array.isArray(parsed.sentences) && parsed.sentences.length > 0) {
-      const sentences = parsed.sentences
-        .filter(s => s.english && s.native)
-        .map(s => {
-          const verified = lookupNativeWord(s.english, language);
-          return {
-            english: s.english,
-            native: verified || fixWrongLanguageText(s.native, language),
-            transliteration: s.transliteration || '',
-            usage: s.usage || '',
-          };
-        })
-        // Reject items where the native text is not in the target script.
-        .filter(s => hasScriptChars(s.native, language))
-        .slice(0, 5);
-
-      if (sentences.length > 0) {
-        dailySentencesCache.set(cacheKey, sentences);
-        return res.json({ success: true, sentences });
-      }
-    }
-
-    // Fallback
-    res.json({ success: true, sentences: getDailySentenceFallback(language) });
-  } catch (error) {
-    console.error('[AI DailySentences] Error:', error.message);
-    res.json({ success: true, sentences: getDailySentenceFallback(language) });
   }
 };
