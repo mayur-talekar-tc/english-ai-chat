@@ -106,7 +106,7 @@ export class Chat implements OnInit {
     const langName = savedLang.charAt(0).toUpperCase() + savedLang.slice(1);
     return {
       role: 'ai',
-      content: `Hello! I'm Bhasha AI. You're learning ${langName}! Type in ${langName} or English — I'll reply in the same language! Ask me anything. 🎉`,
+      content: `Hello! I'm BhashaAI — your English learning tutor! Type in ${langName} and I'll teach you English through it. Ask me "_____ ला इंग्रजीत काय म्हणतात?" or any word you want to learn! 🎉`,
       timestamp: new Date().toISOString(),
     };
   }

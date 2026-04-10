@@ -26,38 +26,38 @@ export class Home {
   features = [
     {
       icon: '💬',
-      title: 'AI Tutor Chat',
-      description: 'Practice conversations with an AI that adapts to your level and corrects mistakes in real-time.',
+      title: 'AI English Tutor',
+      description: 'Chat in your language and learn English words, sentences, and grammar with AI that adapts to your level.',
       link: '/chat',
       color: 'green',
     },
     {
       icon: '📚',
-      title: 'Daily Vocabulary',
-      description: 'Learn 30 new words every day with flashcards, pronunciation, and spaced repetition.',
+      title: 'Daily English Words',
+      description: 'Learn 30 new English words every day with meaning in your language, flashcards, and examples.',
       link: '/learn',
       color: 'blue',
     },
     {
       icon: '🎯',
-      title: 'Quiz Arena',
-      description: 'Test your knowledge with AI-generated quizzes — words, sentences, and fill-in-the-blanks.',
+      title: 'English Quiz',
+      description: 'Test your English with quizzes in your language — translate words, sentences, and fill-in-the-blanks.',
       link: '/quiz',
       color: 'purple',
     },
     {
       icon: '🎙️',
       title: 'Voice Practice',
-      description: 'Improve pronunciation with speech recognition and instant feedback on your accent.',
+      description: 'Improve English pronunciation with speech recognition and instant feedback on your accent.',
       link: '/voice',
       color: 'orange',
     },
   ];
 
   steps = [
-    { num: '1', title: 'Pick a Language', desc: 'Choose from 27+ Indian and global languages', icon: '🌍' },
-    { num: '2', title: 'Learn Daily', desc: 'New words, flashcards, and quizzes every day', icon: '📖' },
-    { num: '3', title: 'Practice & Chat', desc: 'Talk to AI tutor in your chosen language', icon: '🗣️' },
+    { num: '1', title: 'Pick Your Language', desc: 'Select your native language from 22+ options', icon: '🌍' },
+    { num: '2', title: 'Learn English Daily', desc: 'New English words with meaning in your language', icon: '📖' },
+    { num: '3', title: 'Chat & Practice', desc: 'Ask AI tutor English meanings in your language', icon: '🗣️' },
     { num: '4', title: 'Track Progress', desc: 'See your streak, XP, and improvement over time', icon: '📈' },
   ];
 }
