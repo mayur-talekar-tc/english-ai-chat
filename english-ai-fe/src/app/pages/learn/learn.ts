@@ -32,6 +32,7 @@ interface QuizQuestion {
 
 interface FillBlankSentence {
   sentence: string;
+  sentence_native?: string;
   blank_word: string;
   options: string[];
   correct: number;
@@ -41,7 +42,7 @@ interface FillBlankSentence {
 type LearnTab = 'today' | 'previous' | 'quiz' | 'spelling' | 'practice';
 type Level = 'school' | 'adults';
 
-const DAILY_WORDS_KEY = 'bhashaai_daily_words';
+const DAILY_WORDS_KEY = 'bhashaai_daily_words_v4';
 const STREAK_KEY = 'bhashaai_learn_streak';
 const LEARNED_KEY = 'bhashaai_learned_history';
 const LEVEL_KEY = 'bhashaai_learn_level';
@@ -563,6 +564,7 @@ export class Learn {
 
     this.http.post<{ success: boolean; sentences: FillBlankSentence[] }>(`${AI_API_URL}/fill-blank`, {
       words: wordsToUse,
+      language: this.selectedLanguageName(),
     }).subscribe({
       next: (res) => {
         if (res.success && res.sentences?.length > 0) {

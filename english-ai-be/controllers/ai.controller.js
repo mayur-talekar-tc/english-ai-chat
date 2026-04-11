@@ -2,8 +2,221 @@ const Groq = require('groq-sdk');
 
 const groq = new Groq({ apiKey: process.env.GROQ_CLOUD });
 
-// In-memory cache for daily words (keyed by date+language)
+// In-memory cache for daily words (keyed by date+language).
+// Bumped cache version to invalidate stale entries with wrong translations.
+const CACHE_VERSION = 'v4';
 const dailyWordsCache = new Map();
+
+// ============================================================
+// LANGUAGE TRANSLATION SAFETY NET
+// The app teaches ENGLISH through the user's native language.
+// LLMs frequently confuse Marathi with Hindi, Bengali with Assamese,
+// etc. The constants and helpers below give us three layers of defense:
+//   1. Strong per-language prompt instructions (buildLanguageGuide)
+//   2. Verified English->native lookups (lookupNativeWord) that
+//      OVERRIDE whatever the LLM returned for common words.
+//   3. Script-level validation (hasScriptChars) that REJECTS items
+//      whose native text is in the wrong script.
+// ============================================================
+
+// Canonical language name normalization. Frontend sometimes sends
+// lowercase codes like "marathi"; backend bank keys are "Marathi".
+function normalizeLanguageName(language) {
+  if (!language) return 'Hindi';
+  const lower = String(language).toLowerCase().trim();
+  const map = {
+    hindi: 'Hindi', marathi: 'Marathi', tamil: 'Tamil', telugu: 'Telugu',
+    bengali: 'Bengali', gujarati: 'Gujarati', kannada: 'Kannada',
+    malayalam: 'Malayalam', punjabi: 'Punjabi', urdu: 'Urdu', odia: 'Odia',
+    assamese: 'Assamese', manipuri: 'Manipuri', sanskrit: 'Sanskrit',
+    konkani: 'Konkani', nepali: 'Nepali', sindhi: 'Sindhi',
+    kashmiri: 'Kashmiri', maithili: 'Maithili', dogri: 'Dogri',
+    bodo: 'Bodo', santali: 'Santali', english: 'English',
+  };
+  return map[lower] || (lower.charAt(0).toUpperCase() + lower.slice(1));
+}
+
+// Script metadata per language. Unicode range is used to validate
+// that LLM output is actually written in the expected script.
+const LANGUAGE_SCRIPTS = {
+  Hindi:     { script: 'Devanagari', range: '\u0900-\u097F', sample: 'पानी, बिल्ली, पेड़, माँ, स्कूल' },
+  Marathi:   { script: 'Devanagari', range: '\u0900-\u097F', sample: 'पाणी, मांजर, झाड, आई, शाळा' },
+  Sanskrit:  { script: 'Devanagari', range: '\u0900-\u097F', sample: 'जलम्, मार्जारः, वृक्षः, माता, विद्यालयः' },
+  Nepali:    { script: 'Devanagari', range: '\u0900-\u097F', sample: 'पानी, बिरालो, रुख, आमा, विद्यालय' },
+  Konkani:   { script: 'Devanagari', range: '\u0900-\u097F', sample: 'उदक, माजर, रुख, आवय, इस्कोल' },
+  Maithili:  { script: 'Devanagari', range: '\u0900-\u097F', sample: 'पानि, बिलाड़ि, गाछ, माँ, विद्यालय' },
+  Dogri:     { script: 'Devanagari', range: '\u0900-\u097F', sample: 'पानी, बिल्ली, रुक्ख, माँ, स्कूल' },
+  Bodo:      { script: 'Devanagari', range: '\u0900-\u097F', sample: 'दै, मेयो, बिफां, आय, स्कूल' },
+  Bengali:   { script: 'Bengali',    range: '\u0980-\u09FF', sample: 'পানি, বিড়াল, গাছ, মা, স্কুল' },
+  Assamese:  { script: 'Bengali',    range: '\u0980-\u09FF', sample: 'পানী, মেকুৰী, গছ, মা, বিদ্যালয়' },
+  Manipuri:  { script: 'Bengali',    range: '\u0980-\u09FF', sample: 'ঈশিং, হৌদোং, উপাল, ইমা, স্কুল' },
+  Gujarati:  { script: 'Gujarati',   range: '\u0A80-\u0AFF', sample: 'પાણી, બિલાડી, ઝાડ, મા, શાળા' },
+  Punjabi:   { script: 'Gurmukhi',   range: '\u0A00-\u0A7F', sample: 'ਪਾਣੀ, ਬਿੱਲੀ, ਰੁੱਖ, ਮਾਂ, ਸਕੂਲ' },
+  Tamil:     { script: 'Tamil',      range: '\u0B80-\u0BFF', sample: 'தண்ணீர், பூனை, மரம், அம்மா, பள்ளி' },
+  Telugu:    { script: 'Telugu',     range: '\u0C00-\u0C7F', sample: 'నీరు, పిల్లి, చెట్టు, అమ్మ, పాఠశాల' },
+  Kannada:   { script: 'Kannada',    range: '\u0C80-\u0CFF', sample: 'ನೀರು, ಬೆಕ್ಕು, ಮರ, ಅಮ್ಮ, ಶಾಲೆ' },
+  Malayalam: { script: 'Malayalam',  range: '\u0D00-\u0D7F', sample: 'വെള്ളം, പൂച്ച, മരം, അമ്മ, സ്കൂൾ' },
+  Odia:      { script: 'Odia',       range: '\u0B00-\u0B7F', sample: 'ପାଣି, ବିଲେଇ, ଗଛ, ମା, ବିଦ୍ୟାଳୟ' },
+  Urdu:      { script: 'Arabic',     range: '\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF', sample: 'پانی, بلی, درخت, ماں, سکول' },
+  Sindhi:    { script: 'Arabic',     range: '\u0600-\u06FF\u0750-\u077F', sample: 'پاڻي, ٻلي, وڻ, امان, اسڪول' },
+  Kashmiri:  { script: 'Arabic',     range: '\u0600-\u06FF\u0750-\u077F', sample: 'پانؠ, بَرور, کُل, موج, سکول' },
+  Santali:   { script: 'Ol Chiki',   range: '\u1C50-\u1C7F', sample: 'ᱫᱟᱜ, ᱯᱩᱥᱤ, ᱫᱟᱨᱮ, ᱟᱭᱚ, ᱥᱠᱩᱞ' },
+  English:   { script: 'Latin',      range: 'A-Za-z',        sample: 'water, cat, tree, mother, school' },
+};
+
+function getLanguageScriptInfo(language) {
+  return LANGUAGE_SCRIPTS[language] || LANGUAGE_SCRIPTS.Hindi;
+}
+
+// Returns true if the string contains at least one character in the
+// expected script. Used to filter out wrong-language LLM output.
+function hasScriptChars(text, language) {
+  if (!text || typeof text !== 'string') return false;
+  const info = getLanguageScriptInfo(language);
+  if (!info || !info.range) return true;
+  try {
+    const regex = new RegExp(`[${info.range}]`);
+    return regex.test(text);
+  } catch {
+    return true;
+  }
+}
+
+// Verified word banks with rich sentence/phrase data used to
+// reinforce the prompt for the most common confusion cases.
+const LANGUAGE_WORD_BANKS = {
+  Marathi: {
+    note: 'Use ONLY Marathi words in Devanagari. Marathi and Hindi are DIFFERENT languages. NEVER mix Hindi words like पेड़, पानी, बिल्ली, कुत्ता, सेब, माँ, पिता, स्कूल, किताब, बारिश.',
+    words: 'cat=मांजर, dog=कुत्रा, cow=गाय, horse=घोडा, bird=पक्षी, fish=मासा, tree=झाड, flower=फूल, water=पाणी, milk=दूध, rice=भात, bread=भाकरी, apple=सफरचंद, mango=आंबा, banana=केळ, grapes=द्राक्षे, orange=संत्रा, mother=आई, father=बाबा, sister=बहीण, brother=भाऊ, boy=मुलगा, girl=मुलगी, house=घर, school=शाळा, book=पुस्तक, pen=पेन, sun=सूर्य, moon=चंद्र, star=तारा, sky=आकाश, rain=पाऊस, river=नदी, red=लाल, blue=निळा, green=हिरवा, yellow=पिवळा, white=पांढरा, black=काळा, big=मोठा, small=लहान, one=एक, two=दोन, three=तीन, eye=डोळा, hand=हात, ear=कान, head=डोकं',
+    sentences: 'I go to school=मी शाळेत जातो, I eat food=मी जेवण करतो, I drink water=मी पाणी पितो, The sun is big=सूर्य मोठा आहे, I like mangoes=मला आंबे आवडतात, Good morning=शुभ सकाळ, Thank you=धन्यवाद, How are you?=तू कसा आहेस?',
+  },
+  Hindi: {
+    note: 'Use ONLY Hindi words in Devanagari. NEVER use Marathi words like झाड, मांजर, कुत्रा, सफरचंद, आई, बाबा, मुलगा, मुलगी, शाळा, पुस्तक, पाऊस.',
+    words: 'cat=बिल्ली, dog=कुत्ता, cow=गाय, horse=घोड़ा, bird=चिड़िया, fish=मछली, tree=पेड़, flower=फूल, water=पानी, milk=दूध, rice=चावल, bread=रोटी, apple=सेब, mango=आम, banana=केला, grapes=अंगूर, orange=संतरा, mother=माँ, father=पिता, sister=बहन, brother=भाई, boy=लड़का, girl=लड़की, house=घर, school=स्कूल, book=किताब, pen=कलम, sun=सूरज, moon=चाँद, star=तारा, sky=आकाश, rain=बारिश, river=नदी, red=लाल, blue=नीला, green=हरा, yellow=पीला, white=सफेद, black=काला, big=बड़ा, small=छोटा, one=एक, two=दो, three=तीन, eye=आँख, hand=हाथ, ear=कान, head=सिर',
+    sentences: 'I go to school=मैं स्कूल जाता हूँ, I eat food=मैं खाना खाता हूँ, I drink water=मैं पानी पीता हूँ, The sun is big=सूरज बड़ा है, I like mangoes=मुझे आम पसंद है, Good morning=शुभ प्रभात, Thank you=धन्यवाद, How are you?=आप कैसे हैं?',
+  },
+  Tamil: {
+    note: 'Use ONLY Tamil words in Tamil script.',
+    words: 'cat=பூனை, dog=நாய், cow=பசு, bird=பறவை, fish=மீன், tree=மரம், flower=பூ, water=தண்ணீர், milk=பால், rice=அரிசி, apple=ஆப்பிள், mango=மாம்பழம், banana=வாழைப்பழம், mother=அம்மா, father=அப்பா, house=வீடு, school=பள்ளி, book=புத்தகம், sun=சூரியன், moon=நிலா, red=சிவப்பு, blue=நீலம், green=பச்சை, big=பெரிய, small=சிறிய',
+    sentences: 'I go to school=நான் பள்ளிக்கு செல்கிறேன், I eat food=நான் சாப்பிடுகிறேன், I drink water=நான் தண்ணீர் குடிக்கிறேன், Good morning=காலை வணக்கம், Thank you=நன்றி',
+  },
+  Telugu: {
+    note: 'Use ONLY Telugu words in Telugu script.',
+    words: 'cat=పిల్లి, dog=కుక్క, cow=ఆవు, bird=పక్షి, fish=చేప, tree=చెట్టు, flower=పువ్వు, water=నీరు, milk=పాలు, rice=అన్నం, apple=ఆపిల్, mango=మామిడి, banana=అరటిపండు, mother=అమ్మ, father=నాన్న, house=ఇల్లు, school=పాఠశాల, book=పుస్తకం, sun=సూర్యుడు, moon=చంద్రుడు, red=ఎరుపు, blue=నీలం, green=ఆకుపచ్చ, big=పెద్ద, small=చిన్న',
+    sentences: 'I go to school=నేను పాఠశాలకు వెళ్తాను, I eat food=నేను భోజనం చేస్తాను, I drink water=నేను నీరు తాగుతాను, Good morning=శుభోదయం, Thank you=ధన్యవాదాలు',
+  },
+};
+
+function buildLanguageGuide(language) {
+  const normalized = normalizeLanguageName(language);
+  const info = getLanguageScriptInfo(normalized);
+  const bank = LANGUAGE_WORD_BANKS[normalized];
+
+  const scriptBlock = `\nLANGUAGE ACCURACY (CRITICAL):\n- The user's native language is ${normalized}.\n- All native text MUST be written in ${info.script} script.\n- Example ${normalized} words in ${info.script}: ${info.sample}\n- NEVER write Romanized text in the "native" field — use proper ${info.script} script only.\n- NEVER use words from a different language. Marathi ≠ Hindi, Bengali ≠ Assamese, Tamil ≠ Telugu, Urdu ≠ Hindi.\n- If unsure of the exact ${normalized} translation, pick a simpler word you ARE sure of.`;
+
+  const bankBlock = bank
+    ? `\nVerified ${normalized} words: ${bank.words}\nVerified ${normalized} sentences: ${bank.sentences}\n${bank.note}`
+    : '';
+
+  return scriptBlock + bankBlock + '\n';
+}
+
+// Verified English->native lookup used to override LLM output for
+// the most common beginner words. If we have a verified translation,
+// we always use it.
+const ENGLISH_TO_NATIVE = {
+  Marathi: {
+    cat: 'मांजर', dog: 'कुत्रा', cow: 'गाय', horse: 'घोडा', bird: 'पक्षी', fish: 'मासा',
+    tree: 'झाड', flower: 'फूल', water: 'पाणी', milk: 'दूध', rice: 'भात', bread: 'भाकरी',
+    apple: 'सफरचंद', mango: 'आंबा', banana: 'केळ', grapes: 'द्राक्षे', orange: 'संत्रा',
+    mother: 'आई', father: 'बाबा', sister: 'बहीण', brother: 'भाऊ',
+    boy: 'मुलगा', girl: 'मुलगी', house: 'घर', school: 'शाळा', book: 'पुस्तक', pen: 'पेन',
+    sun: 'सूर्य', moon: 'चंद्र', star: 'तारा', sky: 'आकाश', rain: 'पाऊस', river: 'नदी',
+    red: 'लाल', blue: 'निळा', green: 'हिरवा', yellow: 'पिवळा', white: 'पांढरा', black: 'काळा',
+    big: 'मोठा', small: 'लहान', one: 'एक', two: 'दोन', three: 'तीन',
+    eye: 'डोळा', hand: 'हात', ear: 'कान', head: 'डोकं',
+    hello: 'नमस्कार', 'good morning': 'शुभ सकाळ', 'good night': 'शुभ रात्री',
+    'thank you': 'धन्यवाद',
+  },
+  Hindi: {
+    cat: 'बिल्ली', dog: 'कुत्ता', cow: 'गाय', horse: 'घोड़ा', bird: 'चिड़िया', fish: 'मछली',
+    tree: 'पेड़', flower: 'फूल', water: 'पानी', milk: 'दूध', rice: 'चावल', bread: 'रोटी',
+    apple: 'सेब', mango: 'आम', banana: 'केला', grapes: 'अंगूर', orange: 'संतरा',
+    mother: 'माँ', father: 'पिता', sister: 'बहन', brother: 'भाई',
+    boy: 'लड़का', girl: 'लड़की', house: 'घर', school: 'स्कूल', book: 'किताब', pen: 'कलम',
+    sun: 'सूरज', moon: 'चाँद', star: 'तारा', sky: 'आकाश', rain: 'बारिश', river: 'नदी',
+    red: 'लाल', blue: 'नीला', green: 'हरा', yellow: 'पीला', white: 'सफेद', black: 'काला',
+    big: 'बड़ा', small: 'छोटा', one: 'एक', two: 'दो', three: 'तीन',
+    eye: 'आँख', hand: 'हाथ', ear: 'कान', head: 'सिर',
+    hello: 'नमस्ते', 'good morning': 'शुभ प्रभात', 'good night': 'शुभ रात्रि',
+    'thank you': 'धन्यवाद',
+  },
+  Tamil: {
+    cat: 'பூனை', dog: 'நாய்', cow: 'பசு', bird: 'பறவை', fish: 'மீன்',
+    tree: 'மரம்', flower: 'பூ', water: 'தண்ணீர்', milk: 'பால்', rice: 'அரிசி',
+    apple: 'ஆப்பிள்', mango: 'மாம்பழம்', banana: 'வாழைப்பழம்',
+    mother: 'அம்மா', father: 'அப்பா', house: 'வீடு', school: 'பள்ளி', book: 'புத்தகம்',
+    sun: 'சூரியன்', moon: 'நிலா', red: 'சிவப்பு', blue: 'நீலம்', green: 'பச்சை',
+    big: 'பெரிய', small: 'சிறிய', hello: 'வணக்கம்', 'thank you': 'நன்றி',
+  },
+  Telugu: {
+    cat: 'పిల్లి', dog: 'కుక్క', cow: 'ఆవు', bird: 'పక్షి', fish: 'చేప',
+    tree: 'చెట్టు', flower: 'పువ్వు', water: 'నీరు', milk: 'పాలు', rice: 'అన్నం',
+    apple: 'ఆపిల్', mango: 'మామిడి', banana: 'అరటిపండు',
+    mother: 'అమ్మ', father: 'నాన్న', house: 'ఇల్లు', school: 'పాఠశాల', book: 'పుస్తకం',
+    sun: 'సూర్యుడు', moon: 'చంద్రుడు', red: 'ఎరుపు', blue: 'నీలం', green: 'ఆకుపచ్చ',
+    big: 'పెద్ద', small: 'చిన్న', hello: 'నమస్కారం', 'thank you': 'ధన్యవాదాలు',
+  },
+};
+
+function lookupNativeWord(englishWord, language) {
+  if (!englishWord) return '';
+  const normalized = normalizeLanguageName(language);
+  const dict = ENGLISH_TO_NATIVE[normalized];
+  if (!dict) return '';
+  const key = String(englishWord).toLowerCase().trim();
+  return dict[key] || '';
+}
+
+// Common cross-language word confusions that must be auto-corrected.
+// If user selected Marathi but LLM returned Hindi word पेड़, rewrite to झाड.
+const WRONG_LANGUAGE_WORDS = {
+  Marathi: {
+    'पेड़': 'झाड', 'पानी': 'पाणी', 'बिल्ली': 'मांजर', 'कुत्ता': 'कुत्रा',
+    'सेब': 'सफरचंद', 'आम': 'आंबा', 'केला': 'केळ', 'माँ': 'आई', 'पिता': 'बाबा',
+    'लड़का': 'मुलगा', 'लड़की': 'मुलगी', 'स्कूल': 'शाळा', 'किताब': 'पुस्तक',
+    'सूरज': 'सूर्य', 'चाँद': 'चंद्र', 'बारिश': 'पाऊस', 'नीला': 'निळा', 'हरा': 'हिरवा',
+    'पीला': 'पिवळा', 'बड़ा': 'मोठा', 'छोटा': 'लहान', 'बहन': 'बहीण', 'भाई': 'भाऊ',
+    'रोटी': 'भाकरी', 'चावल': 'भात', 'चिड़िया': 'पक्षी', 'मछली': 'मासा',
+    'आँख': 'डोळा', 'हाथ': 'हात', 'सिर': 'डोकं', 'दो': 'दोन', 'सफेद': 'पांढरा', 'काला': 'काळा',
+  },
+  Hindi: {
+    'झाड': 'पेड़', 'पाणी': 'पानी', 'मांजर': 'बिल्ली', 'कुत्रा': 'कुत्ता',
+    'सफरचंद': 'सेब', 'आंबा': 'आम', 'केळ': 'केला', 'आई': 'माँ', 'बाबा': 'पिता',
+    'मुलगा': 'लड़का', 'मुलगी': 'लड़की', 'शाळा': 'स्कूल', 'पुस्तक': 'किताब',
+    'सूर्य': 'सूरज', 'चंद्र': 'चाँद', 'पाऊस': 'बारिश', 'निळा': 'नीला', 'हिरवा': 'हरा',
+    'पिवळा': 'पीला', 'मोठा': 'बड़ा', 'लहान': 'छोटा', 'बहीण': 'बहन', 'भाऊ': 'भाई',
+    'भाकरी': 'रोटी', 'भात': 'चावल', 'पक्षी': 'चिड़िया', 'मासा': 'मछली',
+    'डोळा': 'आँख', 'हात': 'हाथ', 'डोकं': 'सिर', 'दोन': 'दो', 'पांढरा': 'सफेद', 'काळा': 'काला',
+  },
+};
+
+function escapeRegex(str) {
+  return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function fixWrongLanguageText(text, language) {
+  if (!text || typeof text !== 'string') return text;
+  const normalized = normalizeLanguageName(language);
+  const corrections = WRONG_LANGUAGE_WORDS[normalized];
+  if (!corrections) return text;
+  let fixed = text;
+  const keys = Object.keys(corrections).sort((a, b) => b.length - a.length);
+  for (const wrong of keys) {
+    fixed = fixed.replace(new RegExp(escapeRegex(wrong), 'g'), corrections[wrong]);
+  }
+  return fixed;
+}
 
 const QUIZ_FALLBACKS = {
   vocabulary: [
@@ -261,6 +474,10 @@ function normalizeQuizQuestions(payload, category) {
   }));
 }
 
+// Vocabulary flashcards: teach ENGLISH to native-language speakers.
+// Shape: { word (English), native (native script), transliteration,
+//          example (English sentence), example_native (native translation),
+//          emoji, category }
 function normalizeVocabularyWords(payload, language) {
   const rawWords = Array.isArray(payload?.words) ? payload.words : [];
 
@@ -270,46 +487,58 @@ function normalizeVocabularyWords(payload, language) {
         return null;
       }
 
-      const meaning =
-        typeof item.meaning === 'string' && item.meaning.trim() ? item.meaning.trim() : 'Meaning unavailable';
+      const englishWord = item.word.trim();
+
+      // Override with verified native translation if we know it.
+      const verifiedNative = lookupNativeWord(englishWord, language);
+      let native =
+        typeof item.native === 'string' && item.native.trim() ? item.native.trim() : '';
+      if (verifiedNative) {
+        native = verifiedNative;
+      } else if (native) {
+        native = fixWrongLanguageText(native, language);
+      }
+
+      // Script validation: if we have a native-script language and the
+      // returned native text has no matching script chars, drop the item.
+      if (native && !hasScriptChars(native, language)) {
+        return null;
+      }
+
+      const example =
+        typeof item.example === 'string' && item.example.trim()
+          ? item.example.trim()
+          : `This is a ${englishWord.toLowerCase()}.`;
+
+      let exampleNative =
+        typeof item.example_native === 'string' && item.example_native.trim()
+          ? item.example_native.trim()
+          : '';
+      if (exampleNative) {
+        exampleNative = fixWrongLanguageText(exampleNative, language);
+      }
 
       return {
-        word: item.word.trim(),
+        word: englishWord,
+        native: native || englishWord,
         transliteration:
           typeof item.transliteration === 'string' && item.transliteration.trim()
             ? item.transliteration.trim()
-            : item.word.trim(),
-        meaning,
-        example:
-          typeof item.example === 'string' && item.example.trim()
-            ? item.example.trim()
-            : `${item.word.trim()} means ${meaning.toLowerCase()} in English.`,
+            : '',
+        meaning:
+          typeof item.meaning === 'string' && item.meaning.trim()
+            ? item.meaning.trim()
+            : englishWord,
+        example,
+        example_native: exampleNative,
+        emoji: typeof item.emoji === 'string' ? item.emoji : '📚',
+        category: typeof item.category === 'string' ? item.category : 'General',
       };
     })
     .filter(Boolean)
     .slice(0, 30);
 
-  if (words.length >= 1) {
-    return words;
-  }
-
-  const fallbacks = [
-    { word: 'नमस्ते', transliteration: 'Namaste', meaning: 'Hello', example: 'नमस्ते, आप कैसे हैं?' },
-    { word: 'पानी', transliteration: 'Pani', meaning: 'Water', example: 'मुझे पानी चाहिए।' },
-    { word: 'घर', transliteration: 'Ghar', meaning: 'House', example: 'मेरा घर पास में है।' },
-    { word: 'आम', transliteration: 'Aam', meaning: 'Mango', example: 'मुझे आम खाना पसंद है।' },
-    { word: 'दोस्त', transliteration: 'Dost', meaning: 'Friend', example: 'वह मेरा अच्छा दोस्त है।' },
-    { word: 'किताब', transliteration: 'Kitaab', meaning: 'Book', example: 'यह किताब बहुत अच्छी है।' },
-    { word: 'स्कूल', transliteration: 'School', meaning: 'School', example: 'मैं रोज स्कूल जाता हूँ।' },
-    { word: 'सूरज', transliteration: 'Suraj', meaning: 'Sun', example: 'आज सूरज बहुत तेज है।' },
-    { word: 'खाना', transliteration: 'Khana', meaning: 'Food', example: 'खाना तैयार है।' },
-    { word: 'रास्ता', transliteration: 'Raasta', meaning: 'Road', example: 'यह रास्ता बाजार जाता है।' },
-  ];
-
-  return fallbacks.map((word) => ({
-    ...word,
-    example: `${word.example} (${language})`,
-  }));
+  return words;
 }
 
 async function generateModelText(prompt) {
@@ -420,6 +649,99 @@ Return ONLY valid JSON. No markdown, no code fences, no extra text.`;
   }
 };
 
+// Multi-voice mode: user speaks a single utterance that mixes 2-5 languages
+// together (e.g. "मला water pahije aani mujhe khana chahiye"). We detect each
+// language chunk and translate everything to English with a per-chunk breakdown.
+exports.multiVoice = async (req, res) => {
+  try {
+    const { transcript, languages } = req.body || {};
+
+    if (!transcript || !String(transcript).trim()) {
+      return res.json({ success: false, error: 'Transcript is required' });
+    }
+
+    const selectedLangs = Array.isArray(languages) && languages.length > 0
+      ? languages.join(', ')
+      : 'Hinglish (Hindi + English)';
+
+    const prompt = `You are an expert multi-language translator specializing in Indian language + English mixing (code-switching).
+
+User spoke: "${String(transcript).trim()}"
+Language combination: ${selectedLangs}
+
+RULES:
+- Detect EVERY word/phrase and identify its language precisely.
+- Translate the COMPLETE meaning to proper natural English.
+- Handle code-switching naturally:
+  Hinglish example: "Mujhe bahut bhookh lagi hai yaar, let's go eat something" = "I am very hungry my friend, let's go eat something"
+  Marathlish example: "Mala vatat naahi ki he barobar ahe, I think we should reconsider" = "I don't think this is right, I think we should reconsider"
+  Tanglish example: "Naan romba tired-a iruken, I need some rest" = "I am very tired, I need some rest"
+- Handle slang and informal speech.
+- Give a natural flowing English translation (not word-for-word).
+- Marathi is NOT Hindi. Tamil is NOT Telugu. Bengali is NOT Assamese. Be precise.
+- The "language" field for each breakdown chunk must be a single language name: "Hindi", "Marathi", "Tamil", "Bengali", "English", etc. Not a combo.
+- "detected_mix" is the overall style label, e.g. "Hinglish", "Marathlish", "Tanglish", "Benglish".
+- "confidence" must be one of: "high", "medium", "low".
+
+Return ONLY this JSON (no markdown, no code fences, no extra text):
+{
+  "full_translation": "Natural English translation of everything",
+  "breakdown": [
+    {
+      "original": "exact words spoken",
+      "language": "Hindi",
+      "translation": "English meaning"
+    }
+  ],
+  "detected_mix": "Hinglish",
+  "confidence": "high"
+}`;
+
+    console.log('[AI MultiVoice] Request:', { transcriptLength: String(transcript).length, languages: selectedLangs });
+
+    const text_out = await generateModelText(prompt);
+    const parsed = parseJsonResponse(text_out);
+
+    if (parsed && typeof parsed.full_translation === 'string') {
+      const breakdown = Array.isArray(parsed.breakdown)
+        ? parsed.breakdown
+            .filter((b) => b && typeof b.original === 'string' && typeof b.translation === 'string')
+            .map((b) => ({
+              original: String(b.original).trim(),
+              language: typeof b.language === 'string'
+                ? b.language.trim()
+                : typeof b.detected_language === 'string'
+                  ? b.detected_language.trim()
+                  : 'Unknown',
+              translation: String(b.translation).trim(),
+            }))
+        : [];
+
+      const fullTranslation = parsed.full_translation.trim();
+      const detectedMix =
+        typeof parsed.detected_mix === 'string' && parsed.detected_mix.trim()
+          ? parsed.detected_mix.trim()
+          : 'Mixed';
+      const confidence = ['high', 'medium', 'low'].includes(String(parsed.confidence).toLowerCase())
+        ? String(parsed.confidence).toLowerCase()
+        : 'medium';
+
+      return res.json({
+        success: true,
+        full_translation: fullTranslation,
+        breakdown,
+        detected_mix: detectedMix,
+        confidence,
+      });
+    }
+
+    res.json({ success: false, error: 'Could not parse translation' });
+  } catch (error) {
+    console.error('[AI MultiVoice] Error:', error.message);
+    res.json({ success: false, error: 'Multi-voice translation unavailable' });
+  }
+};
+
 exports.translate = async (req, res) => {
   try {
     const { text, targetLanguage } = req.body;
@@ -446,7 +768,8 @@ Text: ${text}`;
 };
 
 exports.quiz = async (req, res) => {
-  const { language = 'Hindi' } = req.body || {};
+  let { language = 'Hindi' } = req.body || {};
+  language = normalizeLanguageName(language);
 
   console.log('[AI Quiz] Generating question for language:', language);
 
@@ -640,36 +963,50 @@ function getQuizFallback(language) {
 }
 
 exports.vocabulary = async (req, res) => {
-  const { language = 'Hindi', count = 10, category = '', exclude = [] } = req.body || {};
+  let { language = 'Hindi', count = 10, category = '', exclude = [] } = req.body || {};
+  language = normalizeLanguageName(language);
   const wordCount = Math.min(Math.max(parseInt(count) || 10, 1), 30);
 
-  const categoryLine = category ? `- All words must belong to the category: "${category}".` : '- Use a mix of everyday categories.';
+  const categoryLine = category ? `- All words must belong to the category: "${category}".` : '- Use a mix of everyday beginner categories: Animals, Fruits, Family, Food, Nature, School, Body, Colors.';
   const excludeLine = Array.isArray(exclude) && exclude.length > 0
-    ? `- Do NOT include any of these words (already learned): ${exclude.join(', ')}.`
+    ? `- Do NOT include any of these English words (already learned): ${exclude.join(', ')}.`
     : '';
 
   try {
-    const prompt = `You are creating vocabulary flashcards for ${language}.
-Return only valid JSON with this exact shape:
+    const languageGuide = buildLanguageGuide(language);
+
+    const prompt = `You are creating BEGINNER ENGLISH vocabulary flashcards for a ${language} speaker.
+The student knows ${language} and wants to LEARN ENGLISH.
+
+${languageGuide}
+
+Return ONLY valid JSON with this exact shape:
 {
   "words": [
     {
-      "word": "string",
-      "transliteration": "string",
-      "meaning": "string",
-      "example": "string"
+      "word": "Cat",
+      "native": "CORRECT ${language} word",
+      "transliteration": "Roman pronunciation of the ${language} word",
+      "meaning": "Short English definition",
+      "example": "Short simple English sentence using the word.",
+      "example_native": "CORRECT ${language} translation of that English sentence",
+      "emoji": "🐱",
+      "category": "Animals"
     }
   ]
 }
 
 Rules:
-- Generate exactly ${wordCount} vocabulary words.
+- Generate exactly ${wordCount} BEGINNER English vocabulary words (cat, dog, apple, water, house, school, mother, father, tree, book, sun, moon, flower, bird, fish, etc.).
 ${categoryLine}
 ${excludeLine}
-- If the language uses a non-Latin script, "word" must use the native script and "transliteration" must be Romanized.
-- "meaning" must be the English meaning.
-- "example" should be a short natural example in the target language, optionally followed by a short English gloss only if needed.
-- Prefer beginner-friendly, practical vocabulary.`;
+- "word": simple English word (ASCII letters only).
+- "native": the CORRECT ${language} translation in native script. MUST be real ${language}, not Hindi-when-we-asked-for-Marathi.
+- "transliteration": Roman letters only, helps pronounce the ${language} word.
+- "example": simple English sentence using the word.
+- "example_native": CORRECT ${language} translation of that English sentence.
+- "emoji": one relevant emoji.
+- Return ONLY JSON, no markdown, no code fences.`;
 
     console.log('[AI Vocabulary] Request:', { language, count: wordCount, category });
 
@@ -681,7 +1018,7 @@ ${excludeLine}
     res.json({ words });
   } catch (error) {
     console.error('[AI Vocabulary] Error:', error.message);
-    res.json({ words: normalizeVocabularyWords(null, language) });
+    res.json({ words: [] });
   }
 };
 
@@ -743,18 +1080,38 @@ Rules:
 
 exports.correct = async (req, res) => {
   try {
-    const { text, language } = req.body;
+    let { text, language } = req.body || {};
+    language = normalizeLanguageName(language);
 
-    const prompt = `Check this ${language} sentence for grammar mistakes:
-    "${text}"
-    Give corrections in simple way.`;
+    const prompt = `User spoke in ${language}: "${text}"
+
+1. Correct any grammar mistakes in the ${language} sentence.
+2. Give a proper natural English translation.
+3. Provide the corrected version in ${language}.
+
+Return ONLY valid JSON (no markdown, no code fences):
+{
+  "reply": "short friendly feedback in ${language}",
+  "translation": "proper English translation of the original sentence",
+  "corrected": "corrected version in ${language}"
+}`;
 
     console.log('[AI Correct] Request:', { text, language });
 
-    const reply = await generateModelText(prompt);
+    const raw = await generateModelText(prompt);
+    const parsed = parseJsonResponse(raw);
 
-    console.log('[AI Correct] Success');
-    res.json({ success: true, reply });
+    if (parsed && (parsed.reply || parsed.translation || parsed.corrected)) {
+      return res.json({
+        success: true,
+        reply: typeof parsed.reply === 'string' ? parsed.reply.trim() : '',
+        translation: typeof parsed.translation === 'string' ? parsed.translation.trim() : '',
+        corrected: typeof parsed.corrected === 'string' ? parsed.corrected.trim() : '',
+      });
+    }
+
+    console.log('[AI Correct] Fallback to raw text');
+    res.json({ success: true, reply: raw, translation: '', corrected: '' });
 
   } catch (error) {
     console.error('[AI Correct] Error:', error.message);
@@ -768,7 +1125,8 @@ exports.correct = async (req, res) => {
 };
 
 exports.fillBlank = async (req, res) => {
-  const { words = [] } = req.body || {};
+  let { words = [], language = 'Hindi' } = req.body || {};
+  language = normalizeLanguageName(language);
 
   if (!words.length) {
     return res.json({ success: false, error: 'Words required' });
@@ -776,15 +1134,19 @@ exports.fillBlank = async (req, res) => {
 
   try {
     const wordList = words.slice(0, 15).map(w => w.english || w).join(', ');
+    const languageGuide = buildLanguageGuide(language);
 
-    const prompt = `Generate exactly 10 fill-in-the-blank sentences for vocabulary practice.
-Use ONLY these words: ${wordList}
+    const prompt = `Generate exactly 10 beginner English fill-in-the-blank sentences for a ${language} speaker learning English.
+Use ONLY these English words: ${wordList}
+
+${languageGuide}
 
 Return ONLY valid JSON with this exact shape:
 {
   "sentences": [
     {
       "sentence": "The ___ is red and sweet.",
+      "sentence_native": "CORRECT ${language} translation of the full sentence (with the missing word included)",
       "blank_word": "apple",
       "options": ["apple", "mango", "cat", "dog"],
       "correct": 0
@@ -793,14 +1155,13 @@ Return ONLY valid JSON with this exact shape:
 }
 
 Rules:
-- Each sentence must have exactly one blank shown as "___"
-- "blank_word" is the correct word that fills the blank
-- "options" must have exactly 4 choices, including the correct one
-- "correct" is the zero-based index of the correct option
-- Sentences should be simple, suitable for school students
-- Use different words from the list for each sentence
-- Make sentences fun and engaging
-- Return ONLY valid JSON, no markdown`;
+- "sentence" is in simple English with exactly one blank shown as "___".
+- "sentence_native" is the CORRECT ${language} translation of the full English sentence (with the correct word filled in).
+- "blank_word" is the correct English word that fills the blank.
+- "options" are 4 English word choices including the correct one.
+- "correct" is the zero-based index of the correct option in "options".
+- Sentences must be simple, beginner-friendly.
+- Return ONLY valid JSON, no markdown.`;
 
     const text = await generateModelText(prompt);
     const parsed = parseJsonResponse(text);
@@ -811,6 +1172,7 @@ Rules:
         .slice(0, 10)
         .map(s => ({
           sentence: s.sentence,
+          sentence_native: fixWrongLanguageText(String(s.sentence_native || '').trim(), language),
           blank_word: s.blank_word,
           options: s.options,
           correct: typeof s.correct === 'number' ? s.correct : 0,
@@ -827,6 +1189,7 @@ Rules:
       const options = [word, ...otherWords].sort(() => Math.random() - 0.5);
       return {
         sentence: `The ___ is something we know.`,
+        sentence_native: '',
         blank_word: word,
         options,
         correct: options.indexOf(word),
@@ -841,9 +1204,10 @@ Rules:
 };
 
 exports.dailyWords = async (req, res) => {
-  const { language = 'Hindi', date, level = 'school', excludeWords = [] } = req.body || {};
+  let { language = 'Hindi', date, level = 'school', excludeWords = [] } = req.body || {};
+  language = normalizeLanguageName(language);
   const today = date || new Date().toISOString().split('T')[0];
-  const cacheKey = `${today}_${language.toLowerCase()}_${level}`;
+  const cacheKey = `${CACHE_VERSION}_${today}_${language.toLowerCase()}_${level}`;
 
   // Return cached words for same day+language+level
   if (dailyWordsCache.has(cacheKey)) {
@@ -878,8 +1242,14 @@ exports.dailyWords = async (req, res) => {
         ? `\nDo NOT repeat these words: ${alreadyGenerated}.`
         : '';
 
+      const languageGuide = buildLanguageGuide(language);
+
       const prompt = `${levelDesc}
-Generate exactly 10 unique ${language} vocabulary words.
+The student speaks ${language} and wants to learn ENGLISH.
+
+${languageGuide}
+
+Generate exactly 10 unique BEGINNER English vocabulary words.
 Mix different categories. Every word must be different.
 ${excludeLine}${batchExclude}
 
@@ -888,10 +1258,11 @@ Return ONLY valid JSON with this exact shape:
   "words": [
     {
       "english": "Apple",
-      "native": "सेब",
-      "transliteration": "Seb",
+      "native": "CORRECT ${language} translation of Apple",
+      "transliteration": "Roman pronunciation of the ${language} word",
       "meaning": "A sweet red fruit",
       "example": "I eat an apple every day.",
+      "example_native": "CORRECT ${language} translation of that English sentence",
       "emoji": "🍎",
       "category": "Fruits"
     }
@@ -899,16 +1270,16 @@ Return ONLY valid JSON with this exact shape:
 }
 
 Rules:
-- "english" is the English word (e.g. "Apple", "Dog", "Mother")
-- "native" is the FULL CORRECT word in ${language} native script. It must be a complete, properly spelled word in the ${language} script. Do NOT use abbreviations or single characters. For example in Hindi: "सेब" not "स", in Nepali: "स्याउ" not "स", in Marathi: "सफरचंद" not "स"
-- "transliteration" is the full Romanized pronunciation (e.g. "Seb", "Syaau", "Safarchand")
-- "meaning" is a simple English meaning (4-8 words)
-- "example" is a simple English sentence using the word
-- "emoji" is a single emoji that represents the word
-- "category" must be one of: ${categoryList}
-- All 10 words MUST be unique and from different categories
-- IMPORTANT: Double-check every "native" word is the correct ${language} translation, fully spelled in ${language} script
-- Return ONLY valid JSON, no markdown, no code fences`;
+- "english": simple English word in ASCII letters (e.g. "Apple", "Dog", "Mother").
+- "native": the CORRECT, fully spelled ${language} word in its native script. NEVER use Hindi when asked for Marathi. NEVER use a single character.
+- "transliteration": Roman pronunciation of the ${language} word.
+- "meaning": short English meaning (4-8 words).
+- "example": simple English sentence using the word.
+- "example_native": CORRECT ${language} translation of that English sentence.
+- "emoji": one relevant emoji.
+- "category": one of ${categoryList}.
+- All 10 words MUST be unique and from different categories.
+- Return ONLY valid JSON, no markdown, no code fences.`;
 
       const text = await generateModelText(prompt);
       const parsed = parseJsonResponse(text);
@@ -917,16 +1288,28 @@ Rules:
         const batchWords = parsed.words
           .filter(w => w.english && w.native && w.meaning)
           .filter(w => !allWords.some(existing => existing.english.toLowerCase() === w.english.toLowerCase()))
-          .slice(0, remaining)
-          .map(w => ({
-            english: w.english || '',
-            native: w.native || '',
-            transliteration: w.transliteration || w.english || '',
-            meaning: w.meaning || '',
-            example: w.example || `This is ${w.english}.`,
-            emoji: w.emoji || '📚',
-            category: w.category || 'General',
-          }));
+          .map(w => {
+            const englishWord = String(w.english || '').trim();
+            const verified = lookupNativeWord(englishWord, language);
+            let native = verified || fixWrongLanguageText(String(w.native || '').trim(), language);
+            // Reject if native text is in wrong script.
+            if (!native || !hasScriptChars(native, language)) {
+              return null;
+            }
+            const exampleNative = fixWrongLanguageText(String(w.example_native || '').trim(), language);
+            return {
+              english: englishWord,
+              native,
+              transliteration: w.transliteration || englishWord,
+              meaning: w.meaning || '',
+              example: w.example || `This is ${englishWord}.`,
+              example_native: exampleNative,
+              emoji: w.emoji || '📚',
+              category: w.category || 'General',
+            };
+          })
+          .filter(Boolean)
+          .slice(0, remaining);
         allWords.push(...batchWords);
         console.log(`[AI DailyWords] Batch ${batch + 1}: got ${batchWords.length}, total: ${allWords.length}`);
       }

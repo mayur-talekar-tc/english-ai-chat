@@ -4,6 +4,7 @@ const aiController = require('../controllers/ai.controller');
 
 router.post('/chat', aiController.chat);
 router.post('/translate', aiController.translate);
+router.post('/multi-voice', aiController.multiVoice);
 router.post('/correct', aiController.correct);
 router.post('/quiz', aiController.quiz);
 router.post('/vocabulary', aiController.vocabulary);

@@ -7,24 +7,45 @@
       <p class="text-gray-500 text-sm">Learn English through your Indian language</p>
     </div>
 
-    <!-- Mode Toggle -->
-    <div class="flex justify-center mb-6">
+    <!-- Section Toggle: Single Language vs Multi Voice -->
+    <div class="flex justify-center mb-4">
       <div class="inline-flex bg-white rounded-xl border border-gray-200 p-1">
         <button
-          (click)="setMode('translate')"
-          class="px-5 py-2 rounded-lg text-sm font-medium transition-all"
-          [class]="mode() === 'translate' ? 'bg-green-500 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'">
-          Speak & Translate
+          (click)="setSection('single')"
+          class="px-5 py-2 rounded-lg text-sm font-semibold transition-all"
+          [class]="section() === 'single' ? 'bg-green-500 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'">
+          Single Language
         </button>
         <button
-          (click)="setMode('practice')"
-          class="px-5 py-2 rounded-lg text-sm font-medium transition-all"
-          [class]="mode() === 'practice' ? 'bg-green-500 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'">
-          Practice
+          (click)="setSection('multi')"
+          class="px-5 py-2 rounded-lg text-sm font-semibold transition-all"
+          [class]="section() === 'multi' ? 'bg-green-500 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'">
+          Multi Voice
         </button>
       </div>
     </div>
 
+    <!-- Mode Toggle (Single Language sub-modes) -->
+    @if (section() === 'single') {
+      <div class="flex justify-center mb-6">
+        <div class="inline-flex bg-white rounded-xl border border-gray-200 p-1">
+          <button
+            (click)="setMode('translate')"
+            class="px-5 py-2 rounded-lg text-sm font-medium transition-all"
+            [class]="mode() === 'translate' ? 'bg-green-500 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'">
+            Speak & Translate
+          </button>
+          <button
+            (click)="setMode('practice')"
+            class="px-5 py-2 rounded-lg text-sm font-medium transition-all"
+            [class]="mode() === 'practice' ? 'bg-green-500 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'">
+            Practice
+          </button>
+        </div>
+      </div>
+    }
+
+    @if (section() === 'single') {
     <!-- Language Selector -->
     <div class="bg-white rounded-xl border border-gray-200 p-3 mb-6">
       <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-1">Select your language</p>
@@ -201,7 +222,7 @@
       </div>
     </div>
 
-    <!-- Tips Card -->
+    <!-- Tips Card (Single Language) -->
     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 px-6 py-5">
       <h3 class="text-sm font-semibold text-gray-800 mb-2">How it works</h3>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-gray-500">
@@ -218,6 +239,202 @@
         }
       </div>
     </div>
+    }
+
+    @if (section() === 'multi') {
+    <!-- Multi-Language Combo Selector -->
+    <div class="bg-white rounded-xl border border-gray-200 p-4 mb-6">
+      <div class="flex items-center justify-between mb-3">
+        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Pick your language mix</p>
+        <span class="text-xs font-bold text-green-600">
+          {{ multiLanguages().length }} language{{ multiLanguages().length === 1 ? '' : 's' }} selected
+        </span>
+      </div>
+      <div class="grid grid-cols-2 gap-2 max-h-80 overflow-y-auto pr-1">
+        @for (lang of multiLanguageOptions; track lang.label) {
+          <button
+            (click)="toggleMultiLanguage(lang.label)"
+            class="px-3 py-2.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-2 border-2 text-left"
+            [class]="isMultiLanguageSelected(lang.label)
+              ? 'bg-green-500 text-white border-green-500 shadow-sm scale-[1.02]'
+              : 'bg-gray-50 text-gray-700 border-gray-200 hover:border-green-300 hover:bg-green-50'">
+            <span class="text-base">{{ lang.flag }}</span>
+            <span class="flex-1">
+              <span class="block font-bold">{{ lang.label }}</span>
+              <span class="block text-[10px] opacity-80">{{ lang.base }} + English</span>
+            </span>
+            @if (isMultiLanguageSelected(lang.label)) {
+              <span>✓</span>
+            }
+          </button>
+        }
+      </div>
+      <p class="text-[10px] text-gray-400 mt-3 text-center">Minimum 1, maximum 5 selections</p>
+      @if (multiError() && !isListening() && !multiTranscript()) {
+        <p class="text-xs text-red-500 mt-2 text-center">{{ multiError() }}</p>
+      }
+    </div>
+
+    <!-- Main Card -->
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-6">
+      <div class="bg-green-50 border-b border-green-100 px-6 py-5 text-center">
+        <p class="text-sm text-gray-700">
+          <span class="font-semibold text-green-600">Speak in any language!</span>
+        </p>
+        <p class="text-xs text-gray-500 mt-1">Selected: <span class="font-semibold text-green-600">{{ multiSelectionLabel() }}</span></p>
+        <p class="text-[11px] text-gray-400 mt-1 italic">Mix freely — code-switching is fully supported</p>
+      </div>
+
+      <div class="px-6 py-8">
+        <!-- Big Mic Button -->
+        <div class="flex flex-col items-center mb-6">
+          <button
+            (click)="toggleListening()"
+            class="w-24 h-24 rounded-full flex items-center justify-center transition-all shadow-lg mb-3"
+            [class]="isListening()
+              ? 'bg-red-500 hover:bg-red-600 animate-pulse shadow-red-200'
+              : 'bg-green-500 hover:bg-green-600 shadow-green-200'">
+            @if (isListening()) {
+              <svg class="w-10 h-10 text-white" fill="currentColor" viewBox="0 0 24 24">
+                <rect x="6" y="6" width="12" height="12" rx="2"/>
+              </svg>
+            } @else {
+              <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
+              </svg>
+            }
+          </button>
+          <span class="text-sm font-semibold" [class]="isListening() ? 'text-red-500' : 'text-gray-600'">
+            @if (isListening()) {
+              Listening... speak in {{ multiSelectionLabel() }}
+            } @else if (isTranslating()) {
+              Translating...
+            } @else {
+              Speak in any language!
+            }
+          </span>
+        </div>
+
+        <!-- Live / Final Transcript -->
+        @if (multiTranscript()) {
+          <div class="bg-gray-50 rounded-xl px-5 py-4 mb-4">
+            <div class="flex items-center gap-2 mb-1.5">
+              <span class="w-2 h-2 rounded-full bg-blue-400"></span>
+              <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider">You said</p>
+            </div>
+            <p class="text-base text-gray-800 pl-4">{{ multiTranscript() }}</p>
+          </div>
+        }
+
+        <!-- Translating Spinner -->
+        @if (isTranslating()) {
+          <div class="flex items-center justify-center gap-2 text-green-600 py-4">
+            <svg class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span class="text-sm font-medium">Detecting languages and translating...</span>
+          </div>
+        }
+
+        <!-- Result -->
+        @if (multiResult(); as r) {
+          <!-- Detected Mix + Confidence badges -->
+          <div class="flex items-center justify-center gap-2 mb-3 flex-wrap">
+            <span class="text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full border-2 bg-gradient-to-r from-green-100 to-blue-100 text-green-700 border-green-200 animate-fade-in">
+              🎯 {{ r.detected_mix }} detected
+            </span>
+            <span class="text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full border-2"
+                  [class]="confidenceBadgeClass(r.confidence)">
+              {{ r.confidence }} confidence
+            </span>
+          </div>
+
+          <!-- Full Translation -->
+          <div class="bg-green-50 border-2 border-green-200 rounded-2xl px-5 py-5 mb-4 transition-all">
+            <div class="flex items-center justify-between mb-2">
+              <div class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-green-500"></span>
+                <p class="text-xs font-bold text-green-700 uppercase tracking-wider">Full Translation</p>
+              </div>
+              <button (click)="speakText(r.full_translation, 'en')"
+                class="p-1.5 rounded-lg text-green-600 hover:bg-green-100 transition-colors"
+                title="Listen">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/>
+                </svg>
+              </button>
+            </div>
+            <p class="text-lg font-bold text-green-800">{{ r.full_translation }}</p>
+          </div>
+
+          <!-- Breakdown -->
+          @if (r.breakdown.length > 0) {
+            <div class="mb-4">
+              <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Breakdown</p>
+              <div class="space-y-2">
+                @for (b of r.breakdown; track $index) {
+                  <div class="rounded-xl border-2 border-gray-200 bg-white p-3 transition-all hover:shadow-sm">
+                    <div class="flex items-center gap-2 mb-1.5 flex-wrap">
+                      <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border"
+                            [class]="languageBadgeClass(b.language)">
+                        {{ b.language }}
+                      </span>
+                    </div>
+                    <p class="text-sm text-gray-800 mb-1">{{ b.original }}</p>
+                    <div class="flex items-start gap-2 pt-2 border-t border-gray-100">
+                      <span class="text-[10px] font-bold text-green-600 uppercase tracking-wider mt-0.5">EN</span>
+                      <p class="text-sm font-semibold text-green-700">{{ b.translation }}</p>
+                    </div>
+                  </div>
+                }
+              </div>
+            </div>
+          }
+
+          <!-- Action buttons -->
+          <div class="flex justify-center gap-2 flex-wrap">
+            <button (click)="copyTranslation()"
+              class="px-4 py-2 rounded-xl text-sm font-semibold bg-green-500 text-white hover:bg-green-600 transition-all shadow-sm inline-flex items-center gap-1.5">
+              @if (copied()) {
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                </svg>
+                Copied!
+              } @else {
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                </svg>
+                Copy Translation
+              }
+            </button>
+            <button (click)="clearMultiResult()"
+              class="px-4 py-2 rounded-xl text-sm font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200 transition-all">
+              Speak Again
+            </button>
+          </div>
+        }
+
+        @if (multiError() && (multiTranscript() || isListening())) {
+          <div class="bg-red-50 text-red-600 text-sm rounded-xl px-4 py-3 text-center mb-4">
+            {{ multiError() }}
+          </div>
+        }
+      </div>
+    </div>
+
+    <!-- Tips Card (Multi Voice) -->
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 px-6 py-5">
+      <h3 class="text-sm font-semibold text-gray-800 mb-2">How Multi Voice works</h3>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-gray-500">
+        <p class="flex items-start gap-2"><span class="text-green-500">1.</span> Pick 2 to 5 languages above</p>
+        <p class="flex items-start gap-2"><span class="text-green-500">2.</span> Tap the mic and speak naturally</p>
+        <p class="flex items-start gap-2"><span class="text-green-500">3.</span> Mix multiple languages in one sentence</p>
+        <p class="flex items-start gap-2"><span class="text-green-500">4.</span> AI detects each part and translates to English</p>
+      </div>
+      <p class="text-xs text-gray-400 mt-3 italic">Example: "मला water pahije aani mujhe khana chahiye"</p>
+    </div>
+    }
 
   </div>
 </section>

@@ -11,7 +11,10 @@ import { AI_API_URL, API_BASE_URL } from '../../shared/api';
 export class Voice implements OnDestroy {
   private http = inject(HttpClient);
 
-  // Mode: 'practice' = pronunciation practice, 'translate' = speak & translate to English
+  // Top-level section: 'single' = original feature, 'multi' = mixed-language mode
+  section = signal<'single' | 'multi'>('single');
+
+  // Sub-mode inside Single Language: 'practice' or 'translate'
   mode = signal<'practice' | 'translate'>('translate');
 
   isListening = signal(false);
@@ -23,6 +26,101 @@ export class Voice implements OnDestroy {
   selectedLanguage = signal(this.getSavedVoiceLanguage());
   practiceText = signal('');
   score = signal<number | null>(null);
+
+  // Multi-voice state — each selection is a "<Language>+English" combo (e.g. "Hinglish")
+  multiLanguages = signal<string[]>(['Hinglish']);
+  multiTranscript = signal('');
+  multiResult = signal<{
+    full_translation: string;
+    breakdown: Array<{ original: string; language: string; translation: string }>;
+    detected_mix: string;
+    confidence: string;
+  } | null>(null);
+  multiError = signal('');
+  copied = signal(false);
+
+  // 22 Indian language + English combinations with recognition language code
+  // and primary (base) language name for downstream prompts.
+  readonly multiLanguageOptions: Array<{ label: string; base: string; flag: string; code: string }> = [
+    { label: 'Marathlish', base: 'Marathi', flag: '🇮🇳', code: 'mr-IN' },
+    { label: 'Hinglish', base: 'Hindi', flag: '🇮🇳', code: 'hi-IN' },
+    { label: 'Benglish', base: 'Bengali', flag: '🇮🇳', code: 'bn-IN' },
+    { label: 'Tanglish', base: 'Tamil', flag: '🇮🇳', code: 'ta-IN' },
+    { label: 'Tenglish', base: 'Telugu', flag: '🇮🇳', code: 'te-IN' },
+    { label: 'Gujlish', base: 'Gujarati', flag: '🇮🇳', code: 'gu-IN' },
+    { label: 'Punglish', base: 'Punjabi', flag: '🇮🇳', code: 'pa-IN' },
+    { label: 'Kanglish', base: 'Kannada', flag: '🇮🇳', code: 'kn-IN' },
+    { label: 'Malglish', base: 'Malayalam', flag: '🇮🇳', code: 'ml-IN' },
+    { label: 'Odlish', base: 'Odia', flag: '🇮🇳', code: 'or-IN' },
+    { label: 'Asslish', base: 'Assamese', flag: '🇮🇳', code: 'as-IN' },
+    { label: 'Urlish', base: 'Urdu', flag: '🇮🇳', code: 'ur-IN' },
+    { label: 'Sanglish', base: 'Sanskrit', flag: '🇮🇳', code: 'sa-IN' },
+    { label: 'Konlish', base: 'Konkani', flag: '🇮🇳', code: 'kok-IN' },
+    { label: 'Sindlish', base: 'Sindhi', flag: '🇮🇳', code: 'sd-IN' },
+    { label: 'Kashlish', base: 'Kashmiri', flag: '🇮🇳', code: 'ks-IN' },
+    { label: 'Neplish', base: 'Nepali', flag: '🇮🇳', code: 'ne-NP' },
+    { label: 'Manlish', base: 'Manipuri', flag: '🇮🇳', code: 'mni-IN' },
+    { label: 'Bodlish', base: 'Bodo', flag: '🇮🇳', code: 'brx-IN' },
+    { label: 'Doglish', base: 'Dogri', flag: '🇮🇳', code: 'doi-IN' },
+    { label: 'Maitlish', base: 'Maithili', flag: '🇮🇳', code: 'mai-IN' },
+    { label: 'Sanlish', base: 'Santali', flag: '🇮🇳', code: 'sat-IN' },
+  ];
+
+  multiSelectionLabel = computed(() => this.multiLanguages().join(', '));
+  multiSelectionValid = computed(() => {
+    const n = this.multiLanguages().length;
+    return n >= 1 && n <= 5;
+  });
+
+  // Color-coded badges per language
+  private static readonly LANGUAGE_BADGE_CLASSES: Record<string, string> = {
+    English: 'bg-blue-100 text-blue-700 border-blue-200',
+    Hindi: 'bg-orange-100 text-orange-700 border-orange-200',
+    Marathi: 'bg-green-100 text-green-700 border-green-200',
+    Tamil: 'bg-purple-100 text-purple-700 border-purple-200',
+    Telugu: 'bg-pink-100 text-pink-700 border-pink-200',
+    Bengali: 'bg-rose-100 text-rose-700 border-rose-200',
+    Gujarati: 'bg-yellow-100 text-yellow-700 border-yellow-200',
+    Punjabi: 'bg-red-100 text-red-700 border-red-200',
+    Kannada: 'bg-amber-100 text-amber-700 border-amber-200',
+    Malayalam: 'bg-teal-100 text-teal-700 border-teal-200',
+    Odia: 'bg-cyan-100 text-cyan-700 border-cyan-200',
+    Assamese: 'bg-lime-100 text-lime-700 border-lime-200',
+    Urdu: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+    Sanskrit: 'bg-indigo-100 text-indigo-700 border-indigo-200',
+    Konkani: 'bg-fuchsia-100 text-fuchsia-700 border-fuchsia-200',
+    Sindhi: 'bg-sky-100 text-sky-700 border-sky-200',
+    Kashmiri: 'bg-violet-100 text-violet-700 border-violet-200',
+    Nepali: 'bg-slate-100 text-slate-700 border-slate-200',
+  };
+
+  languageBadgeClass(language: string): string {
+    const key = (language || '').trim();
+    if (key.includes('+') || key.toLowerCase() === 'mixed') {
+      return 'bg-gradient-to-r from-green-100 to-blue-100 text-green-700 border-green-200';
+    }
+    return Voice.LANGUAGE_BADGE_CLASSES[key] || 'bg-gray-100 text-gray-700 border-gray-200';
+  }
+
+  confidenceBadgeClass(confidence: string): string {
+    switch ((confidence || '').toLowerCase()) {
+      case 'high': return 'bg-green-100 text-green-700 border-green-200';
+      case 'medium': return 'bg-yellow-100 text-yellow-700 border-yellow-200';
+      case 'low': return 'bg-red-100 text-red-700 border-red-200';
+      default: return 'bg-gray-100 text-gray-700 border-gray-200';
+    }
+  }
+
+  copyTranslation() {
+    const r = this.multiResult();
+    if (!r?.full_translation) return;
+    navigator.clipboard.writeText(r.full_translation).then(() => {
+      this.copied.set(true);
+      setTimeout(() => this.copied.set(false), 1500);
+    }).catch(() => {
+      this.multiError.set('Copy failed');
+    });
+  }
 
   selectedLangName = computed(() => this.languages.find(l => l.code === this.selectedLanguage())?.name || 'Hindi');
 
@@ -94,6 +192,19 @@ export class Voice implements OnDestroy {
     this.stopListening();
   }
 
+  setSection(s: 'single' | 'multi') {
+    this.stopListening();
+    this.section.set(s);
+    this.transcript.set('');
+    this.feedback.set('');
+    this.translation.set('');
+    this.score.set(null);
+    this.multiTranscript.set('');
+    this.multiResult.set(null);
+    this.multiError.set('');
+    this.copied.set(false);
+  }
+
   setMode(m: 'practice' | 'translate') {
     this.mode.set(m);
     this.transcript.set('');
@@ -103,6 +214,36 @@ export class Voice implements OnDestroy {
     if (m === 'practice') {
       this.loadNewPrompt();
     }
+  }
+
+  toggleMultiLanguage(label: string) {
+    const current = this.multiLanguages();
+    if (current.includes(label)) {
+      if (current.length <= 1) {
+        this.multiError.set('Select at least 1 language combo.');
+        return;
+      }
+      this.multiLanguages.set(current.filter((l) => l !== label));
+      this.multiError.set('');
+      return;
+    }
+    if (current.length >= 5) {
+      this.multiError.set('You can select up to 5 language combos.');
+      return;
+    }
+    this.multiLanguages.set([...current, label]);
+    this.multiError.set('');
+  }
+
+  isMultiLanguageSelected(label: string): boolean {
+    return this.multiLanguages().includes(label);
+  }
+
+  clearMultiResult() {
+    this.multiTranscript.set('');
+    this.multiResult.set(null);
+    this.multiError.set('');
+    this.copied.set(false);
   }
 
   selectLanguage(code: string) {
@@ -177,12 +318,28 @@ export class Voice implements OnDestroy {
   private startListening() {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      this.feedback.set('Speech recognition is not supported in your browser. Please use Chrome.');
+      const msg = 'Speech recognition is not supported in your browser. Please use Chrome.';
+      if (this.section() === 'multi') this.multiError.set(msg);
+      else this.feedback.set(msg);
+      return;
+    }
+
+    const isMulti = this.section() === 'multi';
+
+    if (isMulti && !this.multiSelectionValid()) {
+      this.multiError.set('Please select 1 to 5 language combos first.');
       return;
     }
 
     this.recognition = new SpeechRecognition();
-    this.recognition.lang = this.selectedLanguage();
+    if (isMulti) {
+      // Bias recognition to the first selected combo's base language.
+      const first = this.multiLanguages()[0];
+      const opt = this.multiLanguageOptions.find((o) => o.label === first);
+      this.recognition.lang = opt?.code || 'hi-IN';
+    } else {
+      this.recognition.lang = this.selectedLanguage();
+    }
     this.recognition.interimResults = true;
     this.recognition.continuous = true;
     this.recognition.maxAlternatives = 1;
@@ -199,7 +356,12 @@ export class Voice implements OnDestroy {
           interimResult += event.results[i][0].transcript;
         }
       }
-      this.transcript.set((finalResult + interimResult).trim());
+      const combined = (finalResult + interimResult).trim();
+      if (isMulti) {
+        this.multiTranscript.set(combined);
+      } else {
+        this.transcript.set(combined);
+      }
 
       // Reset silence timer - auto-stop after 3s of no new speech
       clearTimeout(this.silenceTimer);
@@ -211,7 +373,11 @@ export class Voice implements OnDestroy {
     this.recognition.onend = () => {
       clearTimeout(this.silenceTimer);
       this.isListening.set(false);
-      if (this.transcript()) {
+      if (isMulti) {
+        if (this.multiTranscript()) {
+          this.translateMultiVoice();
+        }
+      } else if (this.transcript()) {
         if (this.mode() === 'translate') {
           this.translateToEnglish();
         } else {
@@ -222,27 +388,74 @@ export class Voice implements OnDestroy {
 
     this.recognition.onerror = (event: any) => {
       this.isListening.set(false);
-      if (event.error === 'no-speech') {
-        this.feedback.set('No speech detected. Please try again.');
-      } else {
-        this.feedback.set('Error: ' + event.error);
-      }
+      const msg = event.error === 'no-speech' ? 'No speech detected. Please try again.' : 'Error: ' + event.error;
+      if (isMulti) this.multiError.set(msg);
+      else this.feedback.set(msg);
     };
 
-    this.transcript.set('');
-    this.feedback.set('');
-    this.translation.set('');
-    this.score.set(null);
+    if (isMulti) {
+      this.multiTranscript.set('');
+      this.multiResult.set(null);
+      this.multiError.set('');
+    } else {
+      this.transcript.set('');
+      this.feedback.set('');
+      this.translation.set('');
+      this.score.set(null);
+    }
     this.recognition.start();
+  }
+
+  private translateMultiVoice() {
+    const transcript = this.multiTranscript();
+    const languages = this.multiLanguages();
+
+    this.isTranslating.set(true);
+    this.multiResult.set(null);
+    this.multiError.set('');
+    this.copied.set(false);
+
+    this.http.post<{
+      success: boolean;
+      full_translation?: string;
+      breakdown?: Array<{ original: string; language: string; translation: string }>;
+      detected_mix?: string;
+      confidence?: string;
+      error?: string;
+    }>(`${AI_API_URL}/multi-voice`, { transcript, languages }).subscribe({
+      next: (res) => {
+        this.isTranslating.set(false);
+        if (res.success && res.full_translation) {
+          this.multiResult.set({
+            full_translation: res.full_translation,
+            breakdown: Array.isArray(res.breakdown) ? res.breakdown : [],
+            detected_mix: res.detected_mix || 'Mixed',
+            confidence: res.confidence || 'medium',
+          });
+        } else {
+          this.multiError.set(res.error || 'Translation failed. Try again.');
+        }
+      },
+      error: () => {
+        this.isTranslating.set(false);
+        this.multiError.set('Server not available. Please try again.');
+      },
+    });
   }
 
   private stopListening() {
     clearTimeout(this.silenceTimer);
+    // Set listening flag to false FIRST so onend doesn't auto-restart in multi mode.
+    this.isListening.set(false);
     if (this.recognition) {
-      this.recognition.stop();
+      try {
+        this.recognition.onend = null;
+        this.recognition.stop();
+      } catch {
+        // ignore
+      }
       this.recognition = null;
     }
-    this.isListening.set(false);
   }
 
   private translateToEnglish() {
