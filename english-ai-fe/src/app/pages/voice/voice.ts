@@ -373,6 +373,9 @@ export class Voice implements OnDestroy {
     this.recognition.onend = () => {
       clearTimeout(this.silenceTimer);
       this.isListening.set(false);
+      // Only trigger translation from onend if stopListening() hasn't already
+      // handled it (stopListening nulls recognition before we get here).
+      if (!this.recognition) return;
       if (isMulti) {
         if (this.multiTranscript()) {
           this.translateMultiVoice();
@@ -424,6 +427,7 @@ export class Voice implements OnDestroy {
       error?: string;
     }>(`${AI_API_URL}/multi-voice`, { transcript, languages }).subscribe({
       next: (res) => {
+        console.log('[MultiVoice] API response:', JSON.stringify(res));
         this.isTranslating.set(false);
         if (res.success && res.full_translation) {
           this.multiResult.set({
@@ -447,6 +451,13 @@ export class Voice implements OnDestroy {
     clearTimeout(this.silenceTimer);
     // Set listening flag to false FIRST so onend doesn't auto-restart in multi mode.
     this.isListening.set(false);
+
+    // Capture state before killing recognition — onend is nulled below so we
+    // need to trigger the translation / evaluation from here directly.
+    const wasMulti = this.section() === 'multi';
+    const hadMultiTranscript = this.multiTranscript();
+    const hadSingleTranscript = this.transcript();
+
     if (this.recognition) {
       try {
         this.recognition.onend = null;
@@ -455,6 +466,17 @@ export class Voice implements OnDestroy {
         // ignore
       }
       this.recognition = null;
+    }
+
+    // Since onend was nulled, fire the appropriate post-recognition action.
+    if (wasMulti && hadMultiTranscript) {
+      this.translateMultiVoice();
+    } else if (!wasMulti && hadSingleTranscript) {
+      if (this.mode() === 'translate') {
+        this.translateToEnglish();
+      } else {
+        this.evaluatePronunciation();
+      }
     }
   }
 

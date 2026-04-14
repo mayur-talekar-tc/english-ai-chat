@@ -664,37 +664,56 @@ exports.multiVoice = async (req, res) => {
       ? languages.join(', ')
       : 'Hinglish (Hindi + English)';
 
-    const prompt = `You are an expert multi-language translator specializing in Indian language + English mixing (code-switching).
+    const selectedLanguages = selectedLangs;
+    const prompt = `You are an expert multilingual translator specializing in Indian languages mixed with English.
 
-User spoke: "${String(transcript).trim()}"
-Language combination: ${selectedLangs}
+User said: "${String(transcript).trim()}"
+Language mix: ${selectedLanguages}
 
-RULES:
-- Detect EVERY word/phrase and identify its language precisely.
-- Translate the COMPLETE meaning to proper natural English.
-- Handle code-switching naturally:
-  Hinglish example: "Mujhe bahut bhookh lagi hai yaar, let's go eat something" = "I am very hungry my friend, let's go eat something"
-  Marathlish example: "Mala vatat naahi ki he barobar ahe, I think we should reconsider" = "I don't think this is right, I think we should reconsider"
-  Tanglish example: "Naan romba tired-a iruken, I need some rest" = "I am very tired, I need some rest"
-- Handle slang and informal speech.
-- Give a natural flowing English translation (not word-for-word).
-- Marathi is NOT Hindi. Tamil is NOT Telugu. Bengali is NOT Assamese. Be precise.
-- The "language" field for each breakdown chunk must be a single language name: "Hindi", "Marathi", "Tamil", "Bengali", "English", etc. Not a combo.
-- "detected_mix" is the overall style label, e.g. "Hinglish", "Marathlish", "Tanglish", "Benglish".
-- "confidence" must be one of: "high", "medium", "low".
+TASK: Translate the EXACT words spoken into English. Every single word must be translated.
 
-Return ONLY this JSON (no markdown, no code fences, no extra text):
+TRANSLATION RULES:
+
+Hindi words → English:
+किधर/कहाँ = where, हो/है = are/is, मैं/मुझे = I/me, तुम/आप = you,
+क्या = what, कैसे = how, ठीक = fine/okay, नहीं = no, हाँ = yes,
+बहुत = very, अभी = now, कल = yesterday/tomorrow, यार = friend,
+खाना = food, पानी = water, घर = home, जाना = go, आना = come,
+देखना = see, सुनना = hear, बोलना = speak, करना = do, होना = be
+
+Marathi words → English:
+मला = I want/to me, तू/तुम्ही = you, काय = what, आहे/आहेस = is/are,
+नाही = no, हो = yes, बरं = okay/fine, कसा/कशी = how, मी = I,
+जातो/जाते = going, येतो/येते = coming, बघतो = seeing, सांग = tell,
+घर = home, शाळा = school, पाणी = water, जेवण = food
+
+Tamil words → English:
+எங்கே = where, என்ன = what, எப்படி = how, இல்லை = no, ஆம் = yes
+
+Telugu words → English:
+ఏమిటి = what, ఎక్కడ = where, ఎలా = how, లేదు = no, అవును = yes
+
+English words → keep as is
+
+IMPORTANT:
+- Translate EVERY word spoken
+- Keep the natural flow and meaning
+- If someone says "mala water pahije" = "I want water"
+- If someone says "kidhar ho can you see me" = "Where are you, can you see me"
+- If someone says "kasa ahes bhai" = "How are you friend"
+- Make it sound like natural English conversation
+
+Return ONLY this JSON:
 {
-  "full_translation": "Natural English translation of everything",
+  "full_translation": "natural English translation of everything said",
   "breakdown": [
     {
-      "original": "exact words spoken",
-      "language": "Hindi",
+      "original": "original word/phrase",
+      "language": "Hindi/Marathi/English/Tamil/Telugu",
       "translation": "English meaning"
     }
   ],
-  "detected_mix": "Hinglish",
-  "confidence": "high"
+  "detected_mix": "Hinglish/Marathlish/etc"
 }`;
 
     console.log('[AI MultiVoice] Request:', { transcriptLength: String(transcript).length, languages: selectedLangs });
