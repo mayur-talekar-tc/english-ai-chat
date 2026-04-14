@@ -1,167 +1,304 @@
 <!-- ===== HERO SECTION ===== -->
-<section class="hero-bg relative overflow-hidden min-h-[90vh] flex items-center">
-  <!-- Decorative blobs -->
-  <div class="absolute inset-0 -z-10 overflow-hidden">
-    <div class="absolute -top-10 -left-10 w-[500px] h-[500px] bg-green-300 rounded-full blur-[140px] opacity-25"></div>
-    <div class="absolute top-1/3 -right-20 w-[400px] h-[400px] bg-emerald-200 rounded-full blur-[120px] opacity-20"></div>
-    <div class="absolute -bottom-20 left-1/3 w-[450px] h-[450px] bg-green-100 rounded-full blur-[130px] opacity-30"></div>
-  </div>
+<section class="relative overflow-hidden bg-white">
+  <div class="absolute inset-0 opacity-[0.03]" style="background-image: url('data:image/svg+xml,%3Csvg viewBox=%220 0 256 256%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22noise%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.9%22 numOctaves=%224%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23noise)%22/%3E%3C/svg%3E');"></div>
 
-  <!-- Floating language pills -->
-  <span class="absolute top-[18%] left-[7%] bg-white/90 backdrop-blur-md shadow-lg shadow-green-500/5 text-sm px-4 py-2 rounded-full animate-float hidden lg:flex items-center gap-2 border border-green-100/60 font-medium text-gray-700">{{ heroLanguages[0].flag }} {{ heroLanguages[0].name }}</span>
-  <span class="absolute top-[14%] right-[9%] bg-white/90 backdrop-blur-md shadow-lg shadow-blue-500/5 text-sm px-4 py-2 rounded-full animate-float-delayed hidden lg:flex items-center gap-2 border border-blue-100/60 font-medium text-gray-700">{{ heroLanguages[1].flag }} {{ heroLanguages[1].name }}</span>
-  <span class="absolute top-[48%] left-[3%] bg-white/90 backdrop-blur-md shadow-lg text-sm px-4 py-2 rounded-full animate-float-slow hidden lg:flex items-center gap-2 border border-purple-100/60 font-medium text-gray-700">{{ heroLanguages[2].flag }} {{ heroLanguages[2].name }}</span>
-  <span class="absolute top-[52%] right-[4%] bg-white/90 backdrop-blur-md shadow-lg text-sm px-4 py-2 rounded-full animate-float hidden lg:flex items-center gap-2 border border-orange-100/60 font-medium text-gray-700">{{ heroLanguages[3].flag }} {{ heroLanguages[3].name }}</span>
-  <span class="absolute bottom-[22%] left-[11%] bg-white/90 backdrop-blur-md shadow-lg text-sm px-4 py-2 rounded-full animate-float-delayed hidden xl:flex items-center gap-2 border border-pink-100/60 font-medium text-gray-700">{{ heroLanguages[4].flag }} {{ heroLanguages[4].name }}</span>
-  <span class="absolute bottom-[28%] right-[11%] bg-white/90 backdrop-blur-md shadow-lg text-sm px-4 py-2 rounded-full animate-float-slow hidden xl:flex items-center gap-2 border border-green-100/60 font-medium text-gray-700">{{ heroLanguages[5].flag }} {{ heroLanguages[5].name }}</span>
+  <div class="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8 pt-8 pb-14 sm:pt-12 sm:pb-20 lg:pt-20 lg:pb-28">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
 
-  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 w-full">
-    <div class="text-center max-w-4xl mx-auto">
-
-      <h1 class="slide-up text-5xl sm:text-6xl lg:text-[4.5rem] font-extrabold text-gray-900 leading-[1.08] tracking-tight">
-        Master Any Language<br>
-        with <span class="gradient-text">BhashaAI</span>
-      </h1>
-
-      <p class="slide-up slide-up-d1 mt-7 text-lg sm:text-xl text-gray-500 max-w-2xl mx-auto leading-relaxed">
-        Learn 27+ languages through conversations, daily vocabulary, quizzes, and voice practice — all powered by AI.
-      </p>
-
-      <!-- CTA buttons -->
-      <div class="slide-up slide-up-d2 mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
-        <a routerLink="/learn" class="cta-glow w-full sm:w-auto bg-green-500 hover:bg-green-600 text-white px-10 py-4 rounded-full font-semibold text-base transition-all shadow-lg shadow-green-500/25 hover:shadow-xl hover:shadow-green-500/30 hover:-translate-y-1">
-          Start Learning →
-        </a>
-        <a routerLink="/quiz" class="w-full sm:w-auto bg-white border-2 border-gray-200 hover:border-green-400 text-gray-700 hover:text-green-600 px-10 py-4 rounded-full font-semibold text-base transition-all hover:-translate-y-0.5 shadow-sm">
-          Try a Quiz
-        </a>
-      </div>
-
-      <!-- Inline stats -->
-      <div class="slide-up slide-up-d3 mt-12 inline-flex items-center gap-5 sm:gap-8 bg-white/70 backdrop-blur-sm border border-gray-100 rounded-full px-6 sm:px-8 py-3 shadow-sm">
-        <div class="text-center">
-          <p class="text-lg sm:text-xl font-extrabold text-gray-900">27+</p>
-          <p class="text-[11px] text-gray-400 font-medium">Languages</p>
+      <!-- Left: Text Content -->
+      <div class="slide-up text-center lg:text-left max-w-xl mx-auto lg:mx-0">
+        <!-- Pill badge -->
+        <div class="inline-flex items-center gap-2 bg-green-50 border border-green-200 rounded-full px-3 py-1 sm:px-4 sm:py-1.5 mb-5 sm:mb-6">
+          <span class="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-green-500"></span>
+          <span class="text-[10px] sm:text-xs font-semibold text-green-700 tracking-wide uppercase">The Quiet Scholar Method</span>
         </div>
-        <div class="w-px h-8 bg-gray-200"></div>
-        <div class="text-center">
-          <p class="text-lg sm:text-xl font-extrabold text-gray-900">1M+</p>
-          <p class="text-[11px] text-gray-400 font-medium">Learners</p>
-        </div>
-        <div class="w-px h-8 bg-gray-200"></div>
-        <div class="text-center flex items-center gap-1">
-          <p class="text-lg sm:text-xl font-extrabold text-gray-900">4.9</p>
-          <span class="text-yellow-400 text-sm">★</span>
+
+        <h1 class="text-3xl sm:text-4xl md:text-5xl lg:text-[3.5rem] font-extrabold text-gray-900 leading-[1.1] tracking-tight">
+          Language learning, refined for the <span class="text-green-600">intentional mind.</span>
+        </h1>
+
+        <p class="mt-4 sm:mt-6 text-base sm:text-lg text-gray-500 leading-relaxed max-w-md mx-auto lg:mx-0">
+          We have stripped away the noise — no streaks screaming at you, no cartoon mascots. Just structured, AI-powered language mastery through conversations, vocabulary, and voice.
+        </p>
+
+        <!-- CTA Buttons -->
+        <div class="slide-up slide-up-d1 mt-6 sm:mt-8 flex flex-col sm:flex-row items-center lg:items-start gap-3">
+          <a routerLink="/learn"
+             class="cta-glow w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 hover:to-green-600 text-white px-8 py-3.5 rounded-full font-semibold text-sm transition-all shadow-lg shadow-green-500/25 hover:shadow-xl hover:shadow-green-500/30 hover:-translate-y-0.5">
+            Start Learning
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"/></svg>
+          </a>
+          <a routerLink="/quiz"
+             class="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 px-8 py-3.5 rounded-full font-semibold text-sm transition-all hover:-translate-y-0.5">
+            Try a Quiz
+          </a>
         </div>
       </div>
-    </div>
-  </div>
-</section>
 
-<!-- ===== FEATURES GRID ===== -->
-<section class="py-24 bg-white">
-  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-    <div class="text-center mb-16">
-      <h2 class="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-gray-900">Everything you need to<br><span class="gradient-text">learn faster</span></h2>
-      <p class="mt-4 text-gray-500 max-w-xl mx-auto text-lg">Personalized, immersive, and built for how you actually learn.</p>
-    </div>
-
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-      @for (feature of features; track feature.title) {
-        <a
-          [routerLink]="feature.link"
-          class="feature-card group rounded-3xl p-8 border-2 border-gray-100 bg-white cursor-pointer block"
-        >
-          <div
-            class="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl mb-5 transition-transform group-hover:scale-110"
-            [class]="feature.color === 'green' ? 'bg-green-100'
-              : feature.color === 'blue' ? 'bg-blue-100'
-              : feature.color === 'purple' ? 'bg-purple-100'
-              : 'bg-orange-100'"
-          >{{ feature.icon }}</div>
-          <h3 class="text-xl font-bold text-gray-900 mb-2 group-hover:text-green-600 transition-colors">{{ feature.title }}</h3>
-          <p class="text-gray-500 leading-relaxed">{{ feature.description }}</p>
-          <div class="mt-4 flex items-center gap-1 text-sm font-semibold text-green-600 opacity-0 group-hover:opacity-100 transition-opacity">
-            Try now
-            <svg class="w-4 h-4 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+      <!-- Right: Image Card -->
+      <div class="slide-up slide-up-d2 relative mx-auto lg:mx-0 max-w-sm sm:max-w-md lg:max-w-none w-full">
+        <!-- Main image card -->
+        <div class="relative rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl shadow-gray-900/10 bg-gradient-to-br from-green-50 to-emerald-50 aspect-[4/3]">
+          <div class="absolute inset-0 flex items-center justify-center">
+            <div class="text-center p-6 sm:p-8">
+              <div class="w-24 h-24 sm:w-32 sm:h-32 mx-auto mb-3 sm:mb-4 rounded-full bg-gradient-to-br from-green-100 to-emerald-200 flex items-center justify-center shadow-inner">
+                <svg class="w-12 h-12 sm:w-16 sm:h-16 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+                </svg>
+              </div>
+              <p class="text-green-800 font-bold text-base sm:text-lg">27+ Languages</p>
+              <p class="text-green-600 text-xs sm:text-sm mt-1">AI-Powered Mastery</p>
+            </div>
           </div>
+          <!-- Decorative dots -->
+          <div class="absolute top-4 right-4 sm:top-6 sm:right-6 grid grid-cols-3 gap-1 sm:gap-1.5">
+            @for (dot of dots; track $index) {
+              <span class="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-green-300/50"></span>
+            }
+          </div>
+        </div>
+
+        <!-- Floating quote card -->
+        <div class="absolute -bottom-3 -left-2 sm:-bottom-6 sm:-left-6 bg-white rounded-xl sm:rounded-2xl shadow-xl shadow-gray-900/10 p-3 sm:p-5 max-w-[200px] sm:max-w-[240px] border border-gray-100">
+          <div class="flex items-start gap-2 sm:gap-3">
+            <span class="text-xl sm:text-2xl shrink-0">💬</span>
+            <div>
+              <p class="text-[10px] sm:text-xs text-gray-500 italic leading-relaxed">"The best way to learn is to teach your mind to listen."</p>
+              <p class="text-[9px] sm:text-[10px] text-gray-400 font-semibold mt-1.5 sm:mt-2 uppercase tracking-wider">— Quiet Scholar</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== STATS BAR ===== -->
+<section class="bg-green-50 border-y border-green-100">
+  <div class="max-w-5xl mx-auto px-5 sm:px-6 lg:px-8 py-7 sm:py-10">
+    <div class="grid grid-cols-3 gap-4 sm:gap-8 text-center">
+      <div>
+        <p class="text-2xl sm:text-4xl font-extrabold text-gray-900">27+</p>
+        <p class="text-[10px] sm:text-sm text-gray-500 font-medium mt-0.5 sm:mt-1">Global Languages</p>
+      </div>
+      <div class="border-x border-green-200">
+        <p class="text-2xl sm:text-4xl font-extrabold text-gray-900">1M+</p>
+        <p class="text-[10px] sm:text-sm text-gray-500 font-medium mt-0.5 sm:mt-1">Active Learners</p>
+      </div>
+      <div>
+        <div class="flex items-center justify-center gap-1">
+          <p class="text-2xl sm:text-4xl font-extrabold text-gray-900">4.9</p>
+          <span class="text-yellow-400 text-sm sm:text-xl">★</span>
+        </div>
+        <p class="text-[10px] sm:text-sm text-gray-500 font-medium mt-0.5 sm:mt-1">App Store Rating</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== FEATURES SECTION ===== -->
+<section class="py-14 sm:py-20 lg:py-28 bg-white">
+  <div class="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8">
+
+    <!-- Section Label -->
+    <div class="text-center mb-10 sm:mb-16">
+      <p class="text-[10px] sm:text-xs font-bold text-green-600 uppercase tracking-[0.2em] mb-2 sm:mb-3">How it works</p>
+      <h2 class="text-2xl sm:text-4xl lg:text-5xl font-extrabold text-gray-900 leading-tight">Everything you need to <span class="sm:block"></span><span class="text-green-600">master language</span></h2>
+    </div>
+
+    <!-- Feature 1: Adaptive Conversations -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center mb-12 sm:mb-20">
+      <!-- Chat mockup -->
+      <div class="bg-gray-50 rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-8 border border-gray-100">
+        <div class="space-y-3 sm:space-y-4">
+          <!-- AI message -->
+          <div class="flex gap-2 sm:gap-3 items-start">
+            <div class="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-green-500 flex items-center justify-center shrink-0">
+              <svg class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/></svg>
+            </div>
+            <div class="bg-white rounded-2xl rounded-tl-md px-3 sm:px-4 py-2.5 sm:py-3 shadow-sm border border-gray-100 max-w-[85%] sm:max-w-[280px]">
+              <p class="text-xs sm:text-sm text-gray-700">Namaste! How do you say "Where is the market?" in Hindi? 🛒</p>
+            </div>
+          </div>
+          <!-- User message -->
+          <div class="flex gap-2 sm:gap-3 items-start justify-end">
+            <div class="bg-green-500 rounded-2xl rounded-tr-md px-3 sm:px-4 py-2.5 sm:py-3 shadow-sm max-w-[75%] sm:max-w-[260px]">
+              <p class="text-xs sm:text-sm text-white">बाज़ार कहाँ है?</p>
+            </div>
+            <div class="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gray-200 flex items-center justify-center shrink-0">
+              <svg class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+            </div>
+          </div>
+          <!-- AI response -->
+          <div class="flex gap-2 sm:gap-3 items-start">
+            <div class="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-green-500 flex items-center justify-center shrink-0">
+              <svg class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/></svg>
+            </div>
+            <div class="bg-white rounded-2xl rounded-tl-md px-3 sm:px-4 py-2.5 sm:py-3 shadow-sm border border-gray-100 max-w-[85%] sm:max-w-[280px]">
+              <p class="text-xs sm:text-sm text-gray-700">Perfect! ✅ Your grammar is spot on. Now try: "How much does this cost?"</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Text -->
+      <div class="text-center lg:text-left">
+        <div class="inline-flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-full px-3 py-1 mb-3 sm:mb-4">
+          <span class="text-xs font-semibold text-blue-600">💬 AI Chat</span>
+        </div>
+        <h3 class="text-xl sm:text-2xl md:text-3xl font-extrabold text-gray-900 mb-3 sm:mb-4">Adaptive Conversations</h3>
+        <p class="text-gray-500 leading-relaxed text-sm sm:text-base mb-5 sm:mb-6 max-w-md mx-auto lg:mx-0">Our AI tutor adjusts to your level in real-time. Make mistakes — it corrects you gently. Get it right — it pushes you further. Like having a patient teacher available 24/7.</p>
+        <a routerLink="/chat" class="inline-flex items-center gap-2 text-green-600 font-semibold text-sm hover:text-green-700 transition-colors group">
+          Try AI Chat
+          <svg class="w-4 h-4 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
         </a>
-      }
-    </div>
-  </div>
-</section>
-
-<!-- ===== HOW IT WORKS ===== -->
-<section class="py-24 bg-gray-50">
-  <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-    <div class="text-center mb-16">
-      <h2 class="text-3xl sm:text-4xl font-extrabold text-gray-900">Start learning in <span class="gradient-text">4 simple steps</span></h2>
+      </div>
     </div>
 
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-8">
-      @for (step of steps; track step.num; let i = $index) {
-        <div class="text-center relative">
-          @if (i < 3) {
-            <div class="step-line hidden lg:block"></div>
-          }
-          <div class="w-12 h-12 rounded-full bg-green-500 text-white font-bold text-lg flex items-center justify-center mx-auto mb-4 shadow-lg shadow-green-500/30">{{ step.num }}</div>
-          <div class="text-3xl mb-3">{{ step.icon }}</div>
-          <h4 class="font-bold text-gray-900 text-base">{{ step.title }}</h4>
-          <p class="text-sm text-gray-500 mt-1">{{ step.desc }}</p>
+    <!-- Feature Bento Grid: Daily Quizzes + Voice Practice -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+
+      <!-- Daily Quizzes Card -->
+      <a routerLink="/quiz" class="group bg-gradient-to-br from-purple-50 to-white rounded-2xl sm:rounded-3xl p-5 sm:p-8 border-2 border-gray-100 hover:border-purple-200 transition-all hover:-translate-y-1 hover:shadow-xl hover:shadow-purple-500/5 block">
+        <div class="inline-flex items-center gap-2 bg-purple-100 border border-purple-200 rounded-full px-3 py-1 mb-4 sm:mb-5">
+          <span class="text-xs font-semibold text-purple-600">🎯 Quizzes</span>
         </div>
-      }
-    </div>
-  </div>
-</section>
+        <h3 class="text-lg sm:text-xl font-extrabold text-gray-900 mb-2 group-hover:text-purple-600 transition-colors">Daily Quizzes</h3>
+        <p class="text-gray-500 text-xs sm:text-sm leading-relaxed mb-4 sm:mb-6">AI-generated quizzes that adapt to your weak spots. Fill blanks, match words, and build real fluency.</p>
 
-<!-- ===== INDIAN LANGUAGES ===== -->
-<section class="py-24 bg-white">
-  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-    <div class="text-center mb-12">
-      <h2 class="text-3xl sm:text-4xl font-extrabold text-gray-900">Indian Languages, <span class="gradient-text">Front and Center</span></h2>
-      <p class="mt-4 text-gray-500 max-w-xl mx-auto">22 Indian languages with AI chat, vocabulary, and quiz practice.</p>
-    </div>
-
-    <div class="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-4">
-      @for (lang of indianLanguages; track lang.code) {
-        <div class="lang-card rounded-2xl border border-gray-100 bg-gradient-to-br from-white to-green-50/40 p-5 text-center transition-all hover:-translate-y-2 hover:border-green-300 hover:shadow-xl hover:shadow-green-500/10 cursor-default">
-          <span class="text-3xl block mb-2">{{ lang.flag }}</span>
-          <h4 class="font-bold text-gray-900 text-sm">{{ lang.name }}</h4>
-          <p class="text-xs text-gray-400 mt-1">{{ lang.learners }}</p>
+        <!-- Streak calendar mockup -->
+        <div class="bg-white rounded-xl sm:rounded-2xl p-3 sm:p-4 border border-gray-100 shadow-sm">
+          <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 sm:mb-3">This Week</p>
+          <div class="grid grid-cols-7 gap-1 sm:gap-2">
+            @for (day of weekDays; track $index) {
+              <div class="text-center">
+                <p class="text-[9px] sm:text-[10px] text-gray-400 mb-0.5 sm:mb-1">{{ day.label }}</p>
+                <div class="w-6 h-6 sm:w-8 sm:h-8 rounded-md sm:rounded-lg flex items-center justify-center text-[10px] sm:text-xs font-bold mx-auto"
+                     [class]="day.done ? 'bg-green-500 text-white' : day.today ? 'bg-green-100 text-green-600 ring-2 ring-green-500' : 'bg-gray-100 text-gray-400'">
+                  {{ day.done ? '✓' : day.today ? '!' : '·' }}
+                </div>
+              </div>
+            }
+          </div>
         </div>
-      }
-    </div>
+      </a>
 
-    <div class="text-center mt-10">
-      <a routerLink="/learn" class="inline-flex items-center gap-2 text-green-600 font-semibold hover:text-green-700 transition">
-        Explore all languages
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+      <!-- Voice Practice Card -->
+      <a routerLink="/voice" class="group bg-gradient-to-br from-orange-50 to-white rounded-2xl sm:rounded-3xl p-5 sm:p-8 border-2 border-gray-100 hover:border-orange-200 transition-all hover:-translate-y-1 hover:shadow-xl hover:shadow-orange-500/5 block">
+        <div class="inline-flex items-center gap-2 bg-orange-100 border border-orange-200 rounded-full px-3 py-1 mb-4 sm:mb-5">
+          <span class="text-xs font-semibold text-orange-600">🎙️ Voice</span>
+        </div>
+        <h3 class="text-lg sm:text-xl font-extrabold text-gray-900 mb-2 group-hover:text-orange-600 transition-colors">Voice Practice</h3>
+        <p class="text-gray-500 text-xs sm:text-sm leading-relaxed mb-4 sm:mb-6">Speak freely in your language. AI listens, detects your words, and translates to English in real-time.</p>
+
+        <!-- Waveform mockup -->
+        <div class="bg-white rounded-xl sm:rounded-2xl p-3 sm:p-4 border border-gray-100 shadow-sm">
+          <div class="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
+            <div class="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-orange-500 flex items-center justify-center shadow-sm shrink-0">
+              <svg class="w-4 h-4 sm:w-5 sm:h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
+              </svg>
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="text-xs font-semibold text-gray-700">Listening...</p>
+              <p class="text-[10px] text-gray-400">Speak in any language</p>
+            </div>
+          </div>
+          <!-- Waveform bars -->
+          <div class="flex items-end gap-[2px] sm:gap-[3px] h-6 sm:h-8">
+            @for (bar of waveformBars; track $index) {
+              <div class="flex-1 rounded-full bg-orange-300 animate-pulse"
+                   [style.height.%]="bar"
+                   [style.animation-delay.ms]="$index * 80"></div>
+            }
+          </div>
+        </div>
       </a>
     </div>
+
+    <!-- Vocabulary Card (full width) -->
+    <a routerLink="/learn" class="group mt-4 sm:mt-6 bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl sm:rounded-3xl p-5 sm:p-8 md:p-10 border-2 border-gray-100 hover:border-green-200 transition-all hover:-translate-y-1 hover:shadow-xl hover:shadow-green-500/5 block">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 items-center">
+        <div class="text-center lg:text-left">
+          <div class="inline-flex items-center gap-2 bg-green-100 border border-green-200 rounded-full px-3 py-1 mb-4 sm:mb-5">
+            <span class="text-xs font-semibold text-green-600">📚 Vocabulary</span>
+          </div>
+          <h3 class="text-lg sm:text-xl md:text-2xl font-extrabold text-gray-900 mb-2 group-hover:text-green-600 transition-colors">Daily Vocabulary Builder</h3>
+          <p class="text-gray-500 leading-relaxed text-sm sm:text-base max-w-md mx-auto lg:mx-0">Learn 10 new words every day with correct translations in your native language. Flashcards, transliterations, and example sentences.</p>
+        </div>
+        <!-- Word cards mockup -->
+        <div class="flex gap-2 sm:gap-3 justify-center lg:justify-end">
+          @for (card of vocabCards; track $index) {
+            <div class="bg-white rounded-xl sm:rounded-2xl p-3 sm:p-4 shadow-sm border border-gray-100 w-[5.5rem] sm:w-28 text-center transform transition-transform hover:scale-105"
+                 [style.transform]="'rotate(' + card.rotate + 'deg)'">
+              <p class="text-xl sm:text-2xl mb-0.5 sm:mb-1">{{ card.emoji }}</p>
+              <p class="text-xs sm:text-sm font-bold text-gray-900">{{ card.word }}</p>
+              <p class="text-[9px] sm:text-[10px] text-gray-400 mt-0.5">{{ card.native }}</p>
+            </div>
+          }
+        </div>
+      </div>
+    </a>
   </div>
 </section>
 
-<!-- ===== CTA BANNER ===== -->
-<section class="py-20">
-  <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-    <div class="relative rounded-[2rem] overflow-hidden">
-      <div class="absolute inset-0 bg-gradient-to-br from-green-500 via-green-500 to-emerald-600"></div>
-      <div class="absolute top-0 right-0 w-72 h-72 bg-white/10 rounded-full -translate-y-1/3 translate-x-1/3"></div>
-      <div class="absolute bottom-0 left-0 w-56 h-56 bg-white/10 rounded-full translate-y-1/3 -translate-x-1/3"></div>
-      <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-white/5 rounded-full"></div>
+<!-- ===== PHILOSOPHY SECTION ===== -->
+<section class="py-14 sm:py-20 lg:py-28 bg-gray-900">
+  <div class="max-w-5xl mx-auto px-5 sm:px-6 lg:px-8">
+    <div class="text-center mb-10 sm:mb-14">
+      <p class="text-[10px] sm:text-xs font-bold text-green-400 uppercase tracking-[0.2em] mb-2 sm:mb-3">Our Philosophy</p>
+      <h2 class="text-2xl sm:text-3xl md:text-4xl font-extrabold text-white leading-tight">Learn through silence<br>and <span class="text-green-400">focus</span></h2>
+      <p class="mt-3 sm:mt-4 text-sm sm:text-base text-gray-400 max-w-lg mx-auto">Language acquisition happens when you remove distractions and let the mind absorb naturally.</p>
+    </div>
 
-      <div class="relative z-10 px-8 sm:px-16 py-16 text-center">
-        <h2 class="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white mb-4 leading-tight">Your Language Journey<br>Starts Today</h2>
-        <p class="text-green-100 text-lg mb-8 max-w-lg mx-auto">Learn new words daily, practice with AI chat, and master any language at your own pace.</p>
-        <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
-          <a routerLink="/learn" class="w-full sm:w-auto bg-white text-green-600 px-10 py-4 rounded-full font-bold text-base hover:shadow-2xl transition-all hover:-translate-y-1 shadow-lg">
-            Start Learning
-          </a>
-          <a routerLink="/chat" class="w-full sm:w-auto border-2 border-white/30 text-white px-10 py-4 rounded-full font-semibold text-base hover:bg-white/10 transition-all backdrop-blur-sm">
-            Chat with AI Tutor
-          </a>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+      <!-- No Badges, No Noise -->
+      <div class="bg-gray-800 rounded-2xl sm:rounded-3xl p-5 sm:p-8 border border-gray-700">
+        <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-gray-700 flex items-center justify-center mb-4 sm:mb-5">
+          <svg class="w-5 h-5 sm:w-6 sm:h-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
+          </svg>
         </div>
+        <h3 class="text-lg sm:text-xl font-extrabold text-white mb-2 sm:mb-3">No Badges, No Noise</h3>
+        <p class="text-gray-400 leading-relaxed text-xs sm:text-sm">We won't guilt-trip you with streak counters or flood your screen with animations. Learn at your pace, in your way, with zero anxiety.</p>
       </div>
+
+      <!-- Academic Rigor -->
+      <div class="bg-gray-800 rounded-2xl sm:rounded-3xl p-5 sm:p-8 border border-gray-700">
+        <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-gray-700 flex items-center justify-center mb-4 sm:mb-5">
+          <svg class="w-5 h-5 sm:w-6 sm:h-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/>
+          </svg>
+        </div>
+        <h3 class="text-lg sm:text-xl font-extrabold text-white mb-2 sm:mb-3">Academic Rigor</h3>
+        <p class="text-gray-400 leading-relaxed text-xs sm:text-sm">Every translation is verified. Every vocabulary word is accurate. Our AI doesn't guess — it draws from curated linguistic databases for 27+ languages.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== CTA SECTION ===== -->
+<section class="py-14 sm:py-20 lg:py-28 bg-gray-50">
+  <div class="max-w-3xl mx-auto px-5 sm:px-6 lg:px-8 text-center">
+    <h2 class="text-2xl sm:text-3xl md:text-4xl font-extrabold text-gray-900 leading-tight">Ready to begin<br>your <span class="text-green-600">journey</span>?</h2>
+    <p class="mt-3 sm:mt-4 text-sm sm:text-base text-gray-500 max-w-md mx-auto">Join thousands of intentional learners mastering languages the quiet way.</p>
+
+    <!-- CTA Form -->
+    <div class="mt-8 sm:mt-10 max-w-md mx-auto">
+      <div class="flex flex-col sm:flex-row gap-3">
+        <input
+          type="email"
+          placeholder="Enter your email"
+          class="flex-1 px-5 py-3 sm:py-3.5 rounded-full border-2 border-gray-200 bg-white text-sm text-gray-900 placeholder-gray-400 focus:border-green-500 focus:outline-none transition-colors"
+          [(ngModel)]="ctaEmail"
+        />
+        <a routerLink="/register"
+           class="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 hover:to-green-600 text-white px-7 py-3 sm:py-3.5 rounded-full font-semibold text-sm transition-all shadow-lg shadow-green-500/25 hover:shadow-xl hover:-translate-y-0.5 whitespace-nowrap">
+          Begin Mastery
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"/></svg>
+        </a>
+      </div>
+      <p class="mt-3 text-[10px] sm:text-xs text-gray-400">Free 14-day trial. No credit card required.</p>
     </div>
   </div>
 </section>

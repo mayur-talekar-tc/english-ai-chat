@@ -1,63 +1,37 @@
 import { Component } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { INDIAN_LANGUAGE_OPTIONS } from '../../shared/languages';
+import { FormsModule } from '@angular/forms';
 
 @Component({
   selector: 'app-home',
-  imports: [RouterLink],
+  imports: [RouterLink, FormsModule],
   templateUrl: './home.html',
   styleUrl: './home.css',
 })
 export class Home {
-  indianLanguages = INDIAN_LANGUAGE_OPTIONS.map((language, index) => ({
-    ...language,
-    learners: `${180 + index * 9}K`,
-  }));
+  ctaEmail = '';
 
-  heroLanguages = [
-    this.indianLanguages[0],
-    this.indianLanguages[1],
-    this.indianLanguages[2],
-    this.indianLanguages[3],
-    this.indianLanguages[4],
-    this.indianLanguages[5],
+  // 9 dots for decorative grid
+  dots = Array(9).fill(0);
+
+  // Week streak calendar
+  weekDays = [
+    { label: 'Mon', done: true, today: false },
+    { label: 'Tue', done: true, today: false },
+    { label: 'Wed', done: true, today: false },
+    { label: 'Thu', done: true, today: false },
+    { label: 'Fri', done: false, today: true },
+    { label: 'Sat', done: false, today: false },
+    { label: 'Sun', done: false, today: false },
   ];
 
-  features = [
-    {
-      icon: '💬',
-      title: 'AI Tutor Chat',
-      description: 'Practice conversations with an AI that adapts to your level and corrects mistakes in real-time.',
-      link: '/chat',
-      color: 'green',
-    },
-    {
-      icon: '📚',
-      title: 'Daily Vocabulary',
-      description: 'Learn 30 new words every day with flashcards, pronunciation, and spaced repetition.',
-      link: '/learn',
-      color: 'blue',
-    },
-    {
-      icon: '🎯',
-      title: 'Quiz Arena',
-      description: 'Test your knowledge with AI-generated quizzes — words, sentences, and fill-in-the-blanks.',
-      link: '/quiz',
-      color: 'purple',
-    },
-    {
-      icon: '🎙️',
-      title: 'Voice Practice',
-      description: 'Improve pronunciation with speech recognition and instant feedback on your accent.',
-      link: '/voice',
-      color: 'orange',
-    },
-  ];
+  // Waveform bars (height percentages)
+  waveformBars = [30, 60, 45, 80, 55, 90, 40, 70, 50, 85, 35, 65, 75, 45, 60, 80, 50, 35, 70, 55];
 
-  steps = [
-    { num: '1', title: 'Pick a Language', desc: 'Choose from 27+ Indian and global languages', icon: '🌍' },
-    { num: '2', title: 'Learn Daily', desc: 'New words, flashcards, and quizzes every day', icon: '📖' },
-    { num: '3', title: 'Practice & Chat', desc: 'Talk to AI tutor in your chosen language', icon: '🗣️' },
-    { num: '4', title: 'Track Progress', desc: 'See your streak, XP, and improvement over time', icon: '📈' },
+  // Vocab card mockup
+  vocabCards = [
+    { emoji: '🐱', word: 'Cat', native: 'मांजर', rotate: -3 },
+    { emoji: '💧', word: 'Water', native: 'पाणी', rotate: 1 },
+    { emoji: '🌳', word: 'Tree', native: 'झाड', rotate: -2 },
   ];
 }
