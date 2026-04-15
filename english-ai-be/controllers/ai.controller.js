@@ -787,96 +787,85 @@ Text: ${text}`;
 };
 
 exports.quiz = async (req, res) => {
-  let { language = 'Hindi' } = req.body || {};
+  let { language = 'Hindi', difficulty = 'beginner', words = [] } = req.body || {};
   language = normalizeLanguageName(language);
+  if (!['beginner', 'intermediate', 'advanced'].includes(difficulty)) difficulty = 'beginner';
 
-  console.log('[AI Quiz] Generating question for language:', language);
+  console.log('[AI Quiz] Generating question for language:', language, 'difficulty:', difficulty, 'words:', words?.length || 0);
 
-  // Language-specific word banks for accuracy
-  const wordBanks = {
-    Marathi: {
-      note: 'Use ONLY Marathi words. Marathi and Hindi are DIFFERENT. NEVER use Hindi words.',
-      words: 'tree=झाड (Zaad), water=पाणी (Paani), cat=मांजर (Manjar), dog=कुत्रा (Kutra), mango=आंबा (Amba), apple=सफरचंद (Safarchand), house=घर (Ghar), mother=आई (Aai), father=बाबा (Baba), sun=सूर्य (Surya), moon=चंद्र (Chandra), flower=फूल (Phool), bird=पक्षी (Pakshi), fish=मासा (Maasa), cow=गाय (Gaay), horse=घोडा (Ghoda), milk=दूध (Doodh), rice=भात (Bhaat), bread=भाकरी (Bhakri), banana=केळ (Kel), grapes=द्राक्षे (Draksha), red=लाल (Laal), blue=निळा (Nila), green=हिरवा (Hirva), big=मोठा (Motha), small=लहान (Lahaan), boy=मुलगा (Mulga), girl=मुलगी (Mulgi), school=शाळा (Shaala), book=पुस्तक (Pustak), rain=पाऊस (Paus), river=नदी (Nadi), eye=डोळा (Dola), hand=हात (Haat), ear=कान (Kaan), I go to school=मी शाळेत जातो, I eat food=मी जेवण करतो, The sun is big=सूर्य मोठा आहे, I like mangoes=मला आंबे आवडतात, Good morning=शुभ सकाळ',
-      wrong: 'WRONG Hindi words NEVER use: पेड़, पानी, बिल्ली, कुत्ता, सेब, माँ, पिता, लड़का, लड़की, स्कूल, किताब, बारिश',
-    },
-    Hindi: {
-      note: 'Use ONLY Hindi words. NEVER use Marathi words.',
-      words: 'tree=पेड़ (Ped), water=पानी (Pani), cat=बिल्ली (Billi), dog=कुत्ता (Kutta), mango=आम (Aam), apple=सेब (Seb), house=घर (Ghar), mother=माँ (Maa), father=पिता (Pita), sun=सूरज (Suraj), moon=चाँद (Chaand), flower=फूल (Phool), bird=चिड़िया (Chidiya), fish=मछली (Machli), cow=गाय (Gaay), horse=घोड़ा (Ghoda), milk=दूध (Doodh), rice=चावल (Chawal), bread=रोटी (Roti), banana=केला (Kela), grapes=अंगूर (Angoor), red=लाल (Laal), blue=नीला (Neela), green=हरा (Hara), big=बड़ा (Bada), small=छोटा (Chhota), boy=लड़का (Ladka), girl=लड़की (Ladki), school=स्कूल (School), book=किताब (Kitaab), rain=बारिश (Baarish), river=नदी (Nadi), I go to school=मैं स्कूल जाता हूँ, I eat food=मैं खाना खाता हूँ, The sun is big=सूरज बड़ा है, Good morning=शुभ प्रभात',
-      wrong: 'WRONG Marathi words NEVER use: झाड, मांजर, कुत्रा, सफरचंद, आई, बाबा, मुलगा, मुलगी, शाळा, पुस्तक, पाऊस',
-    },
-    Tamil: {
-      note: 'Use ONLY Tamil words.',
-      words: 'tree=மரம் (Maram), water=தண்ணீர் (Thanneer), cat=பூனை (Poonai), dog=நாய் (Naai), mango=மாம்பழம் (Maambazham), apple=ஆப்பிள் (Apple), house=வீடு (Veedu), mother=அம்மா (Amma), father=அப்பா (Appa), sun=சூரியன் (Suriyan), moon=நிலா (Nila), flower=பூ (Poo)',
-      wrong: '',
-    },
-    Telugu: {
-      note: 'Use ONLY Telugu words.',
-      words: 'tree=చెట్టు (Chettu), water=నీళ్ళు (Neellu), cat=పిల్లి (Pilli), dog=కుక్క (Kukka), mango=మామిడి (Maamidi), house=ఇల్లు (Illu), mother=అమ్మ (Amma), father=నాన్న (Naanna)',
-      wrong: '',
-    },
-  };
-
-  const bank = wordBanks[language];
-  const bankSection = bank
-    ? `\nLANGUAGE ACCURACY (CRITICAL):\n${bank.note}\nVerified words: ${bank.words}\n${bank.wrong ? bank.wrong : ''}\nUse ONLY words from this list or words you are 100% certain are correct ${language}.`
+  // If today's learned words are provided, generate quiz from those words
+  const hasWords = Array.isArray(words) && words.length > 0;
+  const wordsList = hasWords
+    ? words.map(w => `${w.english} = ${w.native} (${w.meaning})`).join('\n')
     : '';
 
-  const systemPrompt = `You are a ${language} language learning quiz generator for BhashaAI app.
-The student speaks English and is learning ${language}.
+  const difficultyTopics = {
+    beginner: 'animals, fruits, colors, numbers, family, vegetables, body parts',
+    intermediate: 'emotions, places, weather, verbs, daily activities, food, clothing, professions',
+    advanced: 'professional vocabulary, academic words, abstract concepts, idioms, advanced verbs',
+  };
 
-You generate ONE quiz question. Randomly pick one of these 3 types:
-1. WORD: Show an English word → 4 ${language} translation options
-2. SENTENCE: Show an English sentence → 4 ${language} translation options
-3. FILL_BLANK: Show English sentence with a blank "Good ___ (morning)" → 4 ${language} options for the blank
+  const topics = difficultyTopics[difficulty];
+
+  const wordsInstruction = hasWords
+    ? `\nIMPORTANT: Generate the question from ONLY these words the student learned today:\n${wordsList}\n\nPick ONE word from this list. The correct option must be the English word from this list. The 3 wrong options must be OTHER English words (not from this list if possible, but plausible).`
+    : `\nTopics: ${topics}`;
+
+  const systemPrompt = `You are an English learning quiz generator for BhashaAI app.
+The student's native language is ${language}. They are LEARNING English.
+
+Generate ONE quiz question.
+The QUESTION must be in ${language}, asking what the English meaning/translation is.
+The OPTIONS must ALL be in ENGLISH.
 
 JSON FORMAT (strict):
 {
-  "display": "The English word or sentence shown big to the user",
-  "question_type": "word" or "sentence" or "fill_blank",
-  "options": ["correct ${language} answer", "wrong1", "wrong2", "wrong3"],
+  "display": "Question in ${language} asking English meaning",
+  "question_type": "word",
+  "options": ["Correct English word", "Wrong English 1", "Wrong English 2", "Wrong English 3"],
   "correct": 0,
-  "explanation": "Short English explanation"
+  "explanation": "Short explanation in ${language}"
 }
 
 RULES:
-- "display": ALWAYS in English. This is shown big and bold to the user.
-- "options": ALWAYS in ${language}. For non-Latin scripts add transliteration in brackets.
+- "display": ALWAYS in ${language}. Ask for the English meaning/translation.
+- "options": ALWAYS in ENGLISH. 4 English words/phrases.
 - "correct": Always 0 (frontend shuffles).
-- "explanation": ALWAYS in English.
-- All 4 options must be real ${language} words/sentences. NEVER mix languages.
-- NEVER use Hindi words for Marathi or vice versa.${bankSection}
+- "explanation": In ${language} explaining the answer.
+- Difficulty: ${difficulty}${wordsInstruction}
+- All 4 English options should be plausible but only 1 correct.
 
 Return ONLY valid JSON. No markdown, no extra text.`;
 
   const seed = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
-  // Examples per language for pattern matching
   const examples = {
     Marathi: `Examples:
-Word: {"display":"Tree","question_type":"word","options":["झाड (Zaad)","फूल (Phool)","पक्षी (Pakshi)","नदी (Nadi)"],"correct":0,"explanation":"Tree is 'झाड' (Zaad) in Marathi."}
-Sentence: {"display":"I go to school","question_type":"sentence","options":["मी शाळेत जातो (Mi shalet jaato)","मी बाजारात जातो (Mi bajarat jaato)","मी घरी जातो (Mi ghari jaato)","मी खेळतो (Mi khelto)"],"correct":0,"explanation":"'I go to school' = 'मी शाळेत जातो' in Marathi."}
-Fill: {"display":"Good ___ (morning)","question_type":"fill_blank","options":["सकाळ (Sakaal)","संध्याकाळ (Sandhyakaal)","रात्र (Ratra)","दुपार (Dupar)"],"correct":0,"explanation":"Good morning = शुभ सकाळ in Marathi."}`,
+{"display":"मांजर ला इंग्रजीत काय म्हणतात?","question_type":"word","options":["Cat","Dog","Bird","Fish"],"correct":0,"explanation":"मांजर म्हणजे इंग्रजीत Cat."}
+{"display":"पाणी चा इंग्रजी अर्थ काय?","question_type":"word","options":["Water","Fire","Air","Earth"],"correct":0,"explanation":"पाणी म्हणजे इंग्रजीत Water."}`,
     Hindi: `Examples:
-Word: {"display":"Water","question_type":"word","options":["पानी (Pani)","आग (Aag)","हवा (Hawa)","मिट्टी (Mitti)"],"correct":0,"explanation":"Water is 'पानी' (Pani) in Hindi."}
-Sentence: {"display":"I eat food","question_type":"sentence","options":["मैं खाना खाता हूँ (Main khana khata hoon)","मैं पानी पीता हूँ (Main pani peeta hoon)","मैं सोता हूँ (Main sota hoon)","मैं खेलता हूँ (Main khelta hoon)"],"correct":0,"explanation":"'I eat food' = 'मैं खाना खाता हूँ' in Hindi."}`,
-    Spanish: `Examples:
-Word: {"display":"Cat","question_type":"word","options":["Gato","Perro","Vaca","Caballo"],"correct":0,"explanation":"Cat is 'Gato' in Spanish."}
-Sentence: {"display":"I go to school","question_type":"sentence","options":["Yo voy a la escuela","Yo como comida","Yo bebo agua","Yo duermo"],"correct":0,"explanation":"'I go to school' = 'Yo voy a la escuela' in Spanish."}`,
-    English: `Examples:
-Word: {"display":"Happy","question_type":"word","options":["Joyful","Angry","Tired","Hungry"],"correct":0,"explanation":"Happy means joyful."}`,
+{"display":"पानी का अंग्रेजी अर्थ क्या है?","question_type":"word","options":["Water","Fire","Air","Earth"],"correct":0,"explanation":"पानी का अंग्रेजी अर्थ Water होता है।"}
+{"display":"बिल्ली को अंग्रेजी में क्या कहते हैं?","question_type":"word","options":["Cat","Dog","Bird","Fish"],"correct":0,"explanation":"बिल्ली को अंग्रेजी में Cat कहते हैं।"}`,
+    Gujarati: `Examples:
+{"display":"લાલ નો અંગ્રેજી અર્થ શું છે?","question_type":"word","options":["Red","Blue","Green","Black"],"correct":0,"explanation":"લાલ નો અંગ્રેજી અર્થ Red છે."}
+{"display":"બિલાડી ને અંગ્રેજીમાં શું કહેવાય?","question_type":"word","options":["Cat","Dog","Bird","Fish"],"correct":0,"explanation":"બિલાડી ને અંગ્રેજીમાં Cat કહેવાય છે."}`,
+    Tamil: `Examples:
+{"display":"நாய் என்பதன் ஆங்கில அர்த்தம் என்ன?","question_type":"word","options":["Dog","Cat","Bird","Fish"],"correct":0,"explanation":"நாய் என்பது ஆங்கிலத்தில் Dog."}`,
+    Telugu: `Examples:
+{"display":"పిల్లి ని ఆంగ్లంలో ఏమంటారు?","question_type":"word","options":["Cat","Dog","Bird","Fish"],"correct":0,"explanation":"పిల్లి ని ఆంగ్లంలో Cat అంటారు."}`,
   };
 
-  const example = examples[language] || examples.English;
+  const example = examples[language] || examples.Hindi;
 
-  const userPrompt = `Generate 1 quiz question for someone learning ${language}.
-Randomly pick type: word, sentence, or fill_blank.
-Topics: fruits, animals, colors, numbers, greetings, family, food, body parts, nature, daily activities, simple sentences.
-${bank ? `Use ONLY verified ${language} words: ${bank.words}` : ''}
+  const userPrompt = `Generate 1 English learning quiz question for a ${language} speaker.
+Difficulty: ${difficulty}
+${hasWords ? `Use ONLY these learned words:\n${wordsList}` : `Topics: ${topics}`}
+Question MUST be in ${language}. Options MUST be in English.
 
 ${example}
 
 Return ONLY JSON:
-{"display":"...","question_type":"...","options":["...","...","...","..."],"correct":0,"explanation":"..."}
+{"display":"...","question_type":"word","options":["...","...","...","..."],"correct":0,"explanation":"..."}
 
 Seed: ${seed}`;
 
@@ -900,7 +889,7 @@ Seed: ${seed}`;
       };
 
       console.log('[AI Quiz] Success:', question.display, '(', question.question_type, ')');
-      return res.json({ question });
+      return res.json({ success: true, question });
     }
 
     // Try nested: {question: {display, ...}}
@@ -910,6 +899,7 @@ Seed: ${seed}`;
       if (correct < 0 || correct > 3) correct = 0;
       console.log('[AI Quiz] Success (nested):', nested.display);
       return res.json({
+        success: true,
         question: {
           display: nested.display.trim(),
           question_type: nested.question_type || 'word',
@@ -926,6 +916,7 @@ Seed: ${seed}`;
       if (correct < 0 || correct > 3) correct = 0;
       console.log('[AI Quiz] Success (old format converted):', parsed.question);
       return res.json({
+        success: true,
         question: {
           display: parsed.question.trim().replace(/^what is the .+ word for ['"]?/i, '').replace(/['"]?\??$/, '').trim() || parsed.question.trim(),
           question_type: 'word',
@@ -937,47 +928,40 @@ Seed: ${seed}`;
     }
 
     console.log('[AI Quiz] Bad response, using fallback');
-    return res.json({ question: getQuizFallback(language) });
+    return res.json({ success: true, question: getQuizFallback(language) });
   } catch (error) {
     console.error('[AI Quiz] Error:', error.message);
-    return res.json({ question: getQuizFallback(language) });
+    return res.json({ success: true, question: getQuizFallback(language) });
   }
 };
 
 function getQuizFallback(language) {
   const fallbacks = {
     Marathi: [
-      { display: 'Cat', question_type: 'word', options: ['मांजर (Manjar)', 'कुत्रा (Kutra)', 'गाय (Gaay)', 'घोडा (Ghoda)'], correct: 0, explanation: "Cat is 'मांजर' (Manjar) in Marathi." },
-      { display: 'Tree', question_type: 'word', options: ['झाड (Zaad)', 'फूल (Phool)', 'पक्षी (Pakshi)', 'नदी (Nadi)'], correct: 0, explanation: "Tree is 'झाड' (Zaad) in Marathi." },
-      { display: 'Water', question_type: 'word', options: ['पाणी (Paani)', 'दूध (Doodh)', 'चहा (Chaha)', 'भात (Bhaat)'], correct: 0, explanation: "Water is 'पाणी' (Paani) in Marathi." },
-      { display: 'I go to school', question_type: 'sentence', options: ['मी शाळेत जातो (Mi shalet jaato)', 'मी बाजारात जातो (Mi bajarat jaato)', 'मी घरी जातो (Mi ghari jaato)', 'मी खेळतो (Mi khelto)'], correct: 0, explanation: "'I go to school' = 'मी शाळेत जातो' in Marathi." },
-      { display: 'Mother', question_type: 'word', options: ['आई (Aai)', 'बाबा (Baba)', 'मुलगा (Mulga)', 'मुलगी (Mulgi)'], correct: 0, explanation: "Mother is 'आई' (Aai) in Marathi." },
-      { display: 'Mango', question_type: 'word', options: ['आंबा (Amba)', 'केळ (Kel)', 'सफरचंद (Safarchand)', 'द्राक्षे (Draksha)'], correct: 0, explanation: "Mango is 'आंबा' (Amba) in Marathi." },
-      { display: 'Good ___ (morning)', question_type: 'fill_blank', options: ['सकाळ (Sakaal)', 'संध्याकाळ (Sandhyakaal)', 'रात्र (Ratra)', 'दुपार (Dupar)'], correct: 0, explanation: "Good morning = शुभ सकाळ in Marathi." },
+      { display: 'मांजर ला इंग्रजीत काय म्हणतात?', question_type: 'word', options: ['Cat', 'Dog', 'Bird', 'Fish'], correct: 0, explanation: 'मांजर म्हणजे इंग्रजीत Cat.' },
+      { display: 'पाणी चा इंग्रजी अर्थ काय?', question_type: 'word', options: ['Water', 'Fire', 'Air', 'Earth'], correct: 0, explanation: 'पाणी म्हणजे इंग्रजीत Water.' },
+      { display: 'झाड ला इंग्रजीत काय म्हणतात?', question_type: 'word', options: ['Tree', 'Flower', 'Bird', 'River'], correct: 0, explanation: 'झाड म्हणजे इंग्रजीत Tree.' },
+      { display: 'आई ला इंग्रजीत काय म्हणतात?', question_type: 'word', options: ['Mother', 'Father', 'Sister', 'Brother'], correct: 0, explanation: 'आई म्हणजे इंग्रजीत Mother.' },
+      { display: 'लाल चा इंग्रजी अर्थ काय?', question_type: 'word', options: ['Red', 'Blue', 'Green', 'Yellow'], correct: 0, explanation: 'लाल म्हणजे इंग्रजीत Red.' },
     ],
     Hindi: [
-      { display: 'Water', question_type: 'word', options: ['पानी (Pani)', 'आग (Aag)', 'हवा (Hawa)', 'मिट्टी (Mitti)'], correct: 0, explanation: "Water is 'पानी' (Pani) in Hindi." },
-      { display: 'Cat', question_type: 'word', options: ['बिल्ली (Billi)', 'कुत्ता (Kutta)', 'गाय (Gaay)', 'घोड़ा (Ghoda)'], correct: 0, explanation: "Cat is 'बिल्ली' (Billi) in Hindi." },
-      { display: 'Tree', question_type: 'word', options: ['पेड़ (Ped)', 'फूल (Phool)', 'चिड़िया (Chidiya)', 'नदी (Nadi)'], correct: 0, explanation: "Tree is 'पेड़' (Ped) in Hindi." },
-      { display: 'I eat food', question_type: 'sentence', options: ['मैं खाना खाता हूँ (Main khana khata hoon)', 'मैं पानी पीता हूँ (Main pani peeta hoon)', 'मैं सोता हूँ (Main sota hoon)', 'मैं खेलता हूँ (Main khelta hoon)'], correct: 0, explanation: "'I eat food' = 'मैं खाना खाता हूँ' in Hindi." },
-      { display: 'Mango', question_type: 'word', options: ['आम (Aam)', 'सेब (Seb)', 'केला (Kela)', 'अंगूर (Angoor)'], correct: 0, explanation: "Mango is 'आम' (Aam) in Hindi." },
-      { display: 'Good ___ (morning)', question_type: 'fill_blank', options: ['सुबह (Subah)', 'शाम (Shaam)', 'रात (Raat)', 'दोपहर (Dopahar)'], correct: 0, explanation: "Good morning = शुभ प्रभात / सुप्रभात in Hindi." },
+      { display: 'बिल्ली को अंग्रेजी में क्या कहते हैं?', question_type: 'word', options: ['Cat', 'Dog', 'Bird', 'Fish'], correct: 0, explanation: 'बिल्ली को अंग्रेजी में Cat कहते हैं।' },
+      { display: 'पानी का अंग्रेजी अर्थ क्या है?', question_type: 'word', options: ['Water', 'Fire', 'Air', 'Earth'], correct: 0, explanation: 'पानी का अंग्रेजी अर्थ Water होता है।' },
+      { display: 'पेड़ को अंग्रेजी में क्या कहते हैं?', question_type: 'word', options: ['Tree', 'Flower', 'Bird', 'River'], correct: 0, explanation: 'पेड़ को अंग्रेजी में Tree कहते हैं।' },
+      { display: 'माँ का अंग्रेजी अर्थ क्या है?', question_type: 'word', options: ['Mother', 'Father', 'Sister', 'Brother'], correct: 0, explanation: 'माँ का अंग्रेजी अर्थ Mother होता है।' },
     ],
-    Spanish: [
-      { display: 'Hello', question_type: 'word', options: ['Hola', 'Adiós', 'Gracias', 'Amigo'], correct: 0, explanation: "'Hola' means 'hello' in Spanish." },
-      { display: 'Cat', question_type: 'word', options: ['Gato', 'Perro', 'Vaca', 'Caballo'], correct: 0, explanation: "'Gato' means 'cat' in Spanish." },
-      { display: 'I go to school', question_type: 'sentence', options: ['Yo voy a la escuela', 'Yo como comida', 'Yo bebo agua', 'Yo duermo'], correct: 0, explanation: "'I go to school' = 'Yo voy a la escuela' in Spanish." },
+    Gujarati: [
+      { display: 'લાલ નો અંગ્રેજી અર્થ શું છે?', question_type: 'word', options: ['Red', 'Blue', 'Green', 'Black'], correct: 0, explanation: 'લાલ નો અંગ્રેજી અર્થ Red છે.' },
+      { display: 'બિલાડી ને અંગ્રેજીમાં શું કહેવાય?', question_type: 'word', options: ['Cat', 'Dog', 'Bird', 'Fish'], correct: 0, explanation: 'બિલાડી ને અંગ્રેજીમાં Cat કહેવાય છે.' },
     ],
-    French: [
-      { display: 'Thank you', question_type: 'word', options: ['Merci', 'Bonjour', 'Au revoir', 'Oui'], correct: 0, explanation: "'Merci' means 'thank you' in French." },
-      { display: 'Cat', question_type: 'word', options: ['Chat', 'Chien', 'Vache', 'Cheval'], correct: 0, explanation: "'Chat' means 'cat' in French." },
+    Tamil: [
+      { display: 'நாய் என்பதன் ஆங்கில அர்த்தம் என்ன?', question_type: 'word', options: ['Dog', 'Cat', 'Bird', 'Fish'], correct: 0, explanation: 'நாய் என்பது ஆங்கிலத்தில் Dog.' },
     ],
-    English: [
-      { display: 'Happy', question_type: 'word', options: ['Joyful', 'Angry', 'Tired', 'Hungry'], correct: 0, explanation: "'Happy' means joyful or glad." },
-      { display: 'She is running', question_type: 'sentence', options: ['She moves fast on foot', 'She is sleeping', 'She is eating', 'She is reading'], correct: 0, explanation: "'Running' means moving fast on foot." },
+    Telugu: [
+      { display: 'పిల్లి ని ఆంగ్లంలో ఏమంటారు?', question_type: 'word', options: ['Cat', 'Dog', 'Bird', 'Fish'], correct: 0, explanation: 'పిల్లి ని ఆంగ్లంలో Cat అంటారు.' },
     ],
   };
-  const set = fallbacks[language] || fallbacks.English;
+  const set = fallbacks[language] || fallbacks.Hindi;
   return set[Math.floor(Math.random() * set.length)];
 }
 
