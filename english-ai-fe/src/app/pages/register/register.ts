@@ -2,6 +2,7 @@ import { Component, signal, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../services/auth';
+import { ToastService } from '../../services/toast';
 
 @Component({
   selector: 'app-register',
@@ -11,6 +12,7 @@ import { AuthService } from '../../services/auth';
 })
 export class Register {
   auth = inject(AuthService);
+  private toast = inject(ToastService);
   name = signal('');
   email = signal('');
   password = signal('');
@@ -24,15 +26,15 @@ export class Register {
     const cp = this.confirmPassword().trim();
 
     if (!n || !e || !p) {
-      this.auth.error.set('Please fill all fields');
+      this.toast.error('Please fill all fields');
       return;
     }
     if (p.length < 6) {
-      this.auth.error.set('Password must be at least 6 characters');
+      this.toast.error('Password must be at least 6 characters');
       return;
     }
     if (p !== cp) {
-      this.auth.error.set('Passwords do not match');
+      this.toast.error('Passwords do not match');
       return;
     }
     this.auth.register(n, e, p);

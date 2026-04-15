@@ -1,6 +1,8 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+import { AuthService } from '../../services/auth';
+import { ProgressService } from '../../services/progress';
 
 @Component({
   selector: 'app-home',
@@ -9,6 +11,9 @@ import { FormsModule } from '@angular/forms';
   styleUrl: './home.css',
 })
 export class Home {
+  auth = inject(AuthService);
+  progress = inject(ProgressService);
+
   ctaEmail = '';
 
   // 9 dots for decorative grid
