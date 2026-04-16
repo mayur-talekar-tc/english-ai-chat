@@ -11,5 +11,10 @@ export const routes: Routes = [
   { path: 'leaderboard', loadComponent: () => import('./pages/leaderboard/leaderboard').then(m => m.Leaderboard), canActivate: [authGuard] },
   { path: 'profile', loadComponent: () => import('./pages/profile/profile').then(m => m.Profile), canActivate: [authGuard] },
   { path: 'onboarding', loadComponent: () => import('./pages/onboarding/onboarding').then(m => m.Onboarding), canActivate: [authGuard] },
+  { path: 'about', loadComponent: () => import('./pages/about/about').then(m => m.About) },
+  { path: 'blog', loadComponent: () => import('./pages/blog/blog').then(m => m.Blog) },
+  { path: 'careers', loadComponent: () => import('./pages/careers/careers').then(m => m.Careers) },
+  { path: 'privacy', loadComponent: () => import('./pages/privacy/privacy').then(m => m.Privacy) },
+  { path: 'terms', loadComponent: () => import('./pages/terms/terms').then(m => m.Terms) },
   { path: '**', redirectTo: '' },
 ];
