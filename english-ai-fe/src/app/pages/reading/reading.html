@@ -1,0 +1,112 @@
+<div class="max-w-3xl mx-auto px-4 py-8">
+
+  <!-- Header -->
+  <div class="mb-8">
+    <h1 class="text-4xl font-black text-gray-900 mb-2">Daily Reading 📰</h1>
+    <p class="text-gray-500">Read English articles with instant translation</p>
+  </div>
+
+  <!-- Controls -->
+  <div class="flex flex-wrap gap-4 mb-8">
+    <!-- Language dropdown -->
+    <select
+      [ngModel]="selectedLanguage()"
+      (ngModelChange)="selectedLanguage.set($event)"
+      class="px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent">
+      @for (lang of languages; track lang.code) {
+        <option [value]="lang.name">{{ lang.flag }} {{ lang.name }}</option>
+      }
+    </select>
+
+    <!-- Difficulty buttons -->
+    <div class="flex rounded-xl border border-gray-200 overflow-hidden">
+      <button
+        (click)="setDifficulty('beginner')"
+        [class]="difficulty() === 'beginner' ? 'bg-green-500 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'"
+        class="px-4 py-2.5 text-sm font-bold transition-all">
+        Beginner
+      </button>
+      <button
+        (click)="setDifficulty('intermediate')"
+        [class]="difficulty() === 'intermediate' ? 'bg-green-500 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'"
+        class="px-4 py-2.5 text-sm font-bold transition-all border-x border-gray-200">
+        Intermediate
+      </button>
+      <button
+        (click)="setDifficulty('advanced')"
+        [class]="difficulty() === 'advanced' ? 'bg-green-500 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'"
+        class="px-4 py-2.5 text-sm font-bold transition-all">
+        Advanced
+      </button>
+    </div>
+
+    <!-- Generate button -->
+    <button
+      (click)="generateArticle()"
+      [disabled]="isLoading()"
+      class="bg-gradient-to-r from-green-700 to-green-500 text-white px-6 py-2.5 rounded-xl font-bold hover:shadow-lg hover:shadow-green-500/25 transition-all disabled:opacity-50">
+      Generate Article →
+    </button>
+  </div>
+
+  <!-- Article Card -->
+  @if (article(); as art) {
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+
+      <!-- Title -->
+      <div class="bg-gradient-to-r from-green-700 to-green-500 p-6 text-white">
+        <div class="text-xs font-bold uppercase tracking-widest mb-2 opacity-70">{{ art.topic }} · {{ art.difficulty }}</div>
+        <h2 class="text-2xl font-black">{{ art.title }}</h2>
+        <p class="text-green-100 mt-1 text-sm">{{ art.title_native }}</p>
+      </div>
+
+      <!-- Sentences -->
+      <div class="p-6 space-y-6">
+        @for (sentence of art.sentences; track $index) {
+          <div class="border-l-4 border-green-200 pl-4 py-2">
+            <p class="text-gray-900 font-medium text-lg mb-2" [innerHTML]="highlightWords(sentence)"></p>
+            <p class="text-green-600 text-sm italic">{{ sentence.native }}</p>
+            @if (sentence.words.length > 0) {
+              <div class="flex flex-wrap gap-1.5 mt-2">
+                @for (word of sentence.words; track word) {
+                  <span class="text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded-full font-medium border border-green-100">{{ word }}</span>
+                }
+              </div>
+            }
+          </div>
+        }
+      </div>
+
+      <!-- Actions -->
+      <div class="p-6 border-t border-gray-100 flex gap-4">
+        <button (click)="generateArticle()" class="bg-gradient-to-r from-green-700 to-green-500 text-white px-6 py-3 rounded-full font-bold hover:shadow-lg transition-all">
+          New Article ↻
+        </button>
+        <button (click)="saveArticle()" class="border border-gray-200 px-6 py-3 rounded-full font-bold text-gray-700 hover:bg-gray-50 transition-all">
+          Save 📌
+        </button>
+      </div>
+    </div>
+  }
+
+  <!-- Loading state -->
+  @if (isLoading()) {
+    <div class="text-center py-20">
+      <div class="text-4xl mb-4 animate-pulse">📖</div>
+      <p class="text-gray-500 font-medium">Generating article...</p>
+    </div>
+  }
+
+  <!-- Empty state -->
+  @if (!article() && !isLoading()) {
+    <div class="text-center py-20 bg-white rounded-2xl border border-gray-100">
+      <div class="text-6xl mb-4">📰</div>
+      <h3 class="text-xl font-bold text-gray-800 mb-2">Ready to read?</h3>
+      <p class="text-gray-500 mb-6">Select difficulty and generate your first article!</p>
+      <button (click)="generateArticle()" class="bg-gradient-to-r from-green-700 to-green-500 text-white px-8 py-4 rounded-full font-bold hover:shadow-lg hover:shadow-green-500/25 transition-all">
+        Generate Article →
+      </button>
+    </div>
+  }
+
+</div>

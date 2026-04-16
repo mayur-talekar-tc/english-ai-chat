@@ -1386,3 +1386,88 @@ Rules:
     res.json({ success: false, words: [], date: today });
   }
 };
+
+exports.reading = async (req, res) => {
+  let { language = 'Hindi', difficulty = 'beginner' } = req.body || {};
+  language = normalizeLanguageName(language);
+  const allowed = ['beginner', 'intermediate', 'advanced'];
+  if (!allowed.includes(difficulty)) difficulty = 'beginner';
+
+  const lengthGuide = difficulty === 'beginner'
+    ? '5-7 short simple sentences (6-10 words each)'
+    : difficulty === 'intermediate'
+      ? '7-9 medium sentences (10-15 words each)'
+      : '9-12 richer sentences (14-20 words each)';
+
+  const vocabGuide = difficulty === 'beginner'
+    ? 'very common everyday English words'
+    : difficulty === 'intermediate'
+      ? 'everyday English plus a few slightly advanced words'
+      : 'varied vocabulary including some advanced words';
+
+  try {
+    const languageGuide = buildLanguageGuide(language);
+
+    const prompt = `Generate a short English reading passage for a ${language} speaker learning English at ${difficulty} level.
+
+${languageGuide}
+
+Pick ONE interesting everyday topic (e.g. a festival, a market, a train journey, a family meal, a school day, nature, sports, technology). Vary the topic.
+
+Write ${lengthGuide} using ${vocabGuide}.
+
+Return ONLY valid JSON with this exact shape:
+{
+  "title": "Short English title",
+  "title_native": "CORRECT ${language} translation of the title",
+  "topic": "one or two word topic label in English",
+  "difficulty": "${difficulty}",
+  "sentences": [
+    {
+      "english": "One English sentence from the passage.",
+      "native": "CORRECT ${language} translation of that English sentence.",
+      "words": ["2-4 key English words from this sentence that the learner should focus on"]
+    }
+  ]
+}
+
+Rules:
+- Every sentence object MUST have "english", "native", and "words".
+- "native" must be in the correct ${language} script — NEVER use Hindi when asked for Marathi, etc.
+- "words" are 2-4 important English words actually present in the "english" sentence (match case-insensitive).
+- Keep the passage coherent — sentences should flow as one story/description.
+- Return ONLY valid JSON, no markdown, no code fences.`;
+
+    const text = await generateModelText(prompt);
+    const parsed = parseJsonResponse(text);
+
+    if (parsed && Array.isArray(parsed.sentences) && parsed.sentences.length > 0) {
+      const sentences = parsed.sentences
+        .filter(s => s && s.english)
+        .map(s => {
+          const english = String(s.english).trim();
+          const native = fixWrongLanguageText(String(s.native || '').trim(), language);
+          let words = Array.isArray(s.words) ? s.words.map(w => String(w).trim()).filter(Boolean) : [];
+          // Only keep words that actually appear in the sentence (case-insensitive)
+          words = words.filter(w => new RegExp(`\\b${w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(english));
+          return { english, native, words };
+        })
+        .filter(s => s.english);
+
+      const article = {
+        title: String(parsed.title || 'Reading').trim(),
+        title_native: fixWrongLanguageText(String(parsed.title_native || '').trim(), language),
+        topic: String(parsed.topic || '').trim(),
+        difficulty,
+        sentences,
+      };
+
+      return res.json({ success: true, article });
+    }
+
+    res.json({ success: false, error: 'Could not generate article' });
+  } catch (error) {
+    console.error('[AI Reading] Error:', error.message);
+    res.json({ success: false, error: 'Reading generation failed' });
+  }
+};

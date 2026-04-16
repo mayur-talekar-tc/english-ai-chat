@@ -13,6 +13,8 @@
              class="text-sm font-medium text-gray-600 hover:text-green-500 transition-colors">Home</a>
           <a routerLink="/learn" routerLinkActive="text-green-500"
              class="text-sm font-medium text-gray-600 hover:text-green-500 transition-colors">Learn</a>
+          <a routerLink="/reading" routerLinkActive="text-green-500"
+             class="text-sm font-medium text-gray-600 hover:text-green-500 transition-colors">Reading</a>
           <a routerLink="/chat" routerLinkActive="text-green-500"
              class="text-sm font-medium text-gray-600 hover:text-green-500 transition-colors">AI Chat</a>
           <a routerLink="/voice" routerLinkActive="text-green-500"
@@ -92,6 +94,17 @@
             <div>
               <span class="block text-[15px] font-semibold">Learn</span>
               <span class="block text-[11px] text-gray-400">Daily vocabulary & flashcards</span>
+            </div>
+          </a>
+
+          <a routerLink="/reading" (click)="toggleMenu()"
+             class="flex items-center gap-4 px-4 py-3.5 rounded-2xl text-gray-700 active:bg-green-100 transition-all">
+            <div class="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center shrink-0">
+              <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 12h4"/></svg>
+            </div>
+            <div>
+              <span class="block text-[15px] font-semibold">Reading</span>
+              <span class="block text-[11px] text-gray-400">Daily articles & translation</span>
             </div>
           </a>
 
