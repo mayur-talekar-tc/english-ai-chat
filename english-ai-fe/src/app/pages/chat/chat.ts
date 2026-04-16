@@ -102,11 +102,9 @@ export class Chat implements OnInit {
   }
 
   private getWelcomeMessage(): ChatMessage {
-    const savedLang = localStorage.getItem('bhashaai_learn_language') || 'hindi';
-    const langName = savedLang.charAt(0).toUpperCase() + savedLang.slice(1);
     return {
       role: 'ai',
-      content: `Hello! I'm Bhasha AI. You're learning ${langName}! Type in ${langName} or English — I'll reply in the same language! Ask me anything. 🎉`,
+      content: `Hello! I'm Bhasha AI. Type in any language — Marathi, Hindi, Gujarati, Tamil or English. I'll auto-detect and reply! 🎉`,
       timestamp: new Date().toISOString(),
     };
   }
