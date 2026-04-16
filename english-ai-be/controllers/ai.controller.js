@@ -787,44 +787,46 @@ Text: ${text}`;
 };
 
 exports.quiz = async (req, res) => {
-  let { language = 'Hindi', difficulty = 'beginner', words = [] } = req.body || {};
+  let { language = 'Hindi', difficulty = 'beginner' } = req.body || {};
   language = normalizeLanguageName(language);
   if (!['beginner', 'intermediate', 'advanced'].includes(difficulty)) difficulty = 'beginner';
 
-  console.log('[AI Quiz] Generating question for language:', language, 'difficulty:', difficulty, 'words:', words?.length || 0);
-
-  // If today's learned words are provided, generate quiz from those words
-  const hasWords = Array.isArray(words) && words.length > 0;
-  const wordsList = hasWords
-    ? words.map(w => `${w.english} = ${w.native} (${w.meaning})`).join('\n')
-    : '';
+  console.log('[AI Quiz] Generating question for language:', language, 'difficulty:', difficulty);
 
   const difficultyTopics = {
-    beginner: 'animals, fruits, colors, numbers, family, vegetables, body parts',
-    intermediate: 'emotions, places, weather, verbs, daily activities, food, clothing, professions',
-    advanced: 'professional vocabulary, academic words, abstract concepts, idioms, advanced verbs',
+    beginner: 'animals, fruits, colors, numbers, family',
+    intermediate: 'emotions, places, weather, verbs',
+    advanced: 'professional, academic vocabulary',
   };
 
   const topics = difficultyTopics[difficulty];
 
-  const wordsInstruction = hasWords
-    ? `\nIMPORTANT: Generate the question from ONLY these words the student learned today:\n${wordsList}\n\nPick ONE word from this list. The correct option must be the English word from this list. The 3 wrong options must be OTHER English words (not from this list if possible, but plausible).`
-    : `\nTopics: ${topics}`;
+  const systemPrompt = `Generate ONE English learning quiz question.
+Student's native language: ${language}
+They are LEARNING English.
 
-  const systemPrompt = `You are an English learning quiz generator for BhashaAI app.
-The student's native language is ${language}. They are LEARNING English.
+Question format:
+- Question in ${language} asking for English meaning
+- 4 options in ENGLISH
 
-Generate ONE quiz question.
-The QUESTION must be in ${language}, asking what the English meaning/translation is.
-The OPTIONS must ALL be in ENGLISH.
+Examples:
+Gujarati: question="લાલ નો અંગ્રેજી અર્થ શું છે?", options=["Red","Blue","Green","Black"], correct=0
+Marathi: question="मांजर ला इंग्रजीत काय म्हणतात?", options=["Cat","Dog","Bird","Fish"], correct=0
+Hindi: question="पानी का अंग्रेजी अर्थ क्या है?", options=["Water","Fire","Air","Earth"], correct=0
+Tamil: question="நாய் என்பதன் ஆங்கில அர்த்தம் என்ன?", options=["Dog","Cat","Bird","Fish"], correct=0
 
-JSON FORMAT (strict):
+Difficulty: ${difficulty}
+- beginner: animals, fruits, colors, numbers, family
+- intermediate: emotions, places, weather, verbs
+- advanced: professional, academic vocabulary
+
+Return JSON:
 {
-  "display": "Question in ${language} asking English meaning",
+  "display": "question in ${language}",
   "question_type": "word",
-  "options": ["Correct English word", "Wrong English 1", "Wrong English 2", "Wrong English 3"],
+  "options": ["English option1", "English option2", "English option3", "English option4"],
   "correct": 0,
-  "explanation": "Short explanation in ${language}"
+  "explanation": "short explanation in ${language}"
 }
 
 RULES:
@@ -832,7 +834,7 @@ RULES:
 - "options": ALWAYS in ENGLISH. 4 English words/phrases.
 - "correct": Always 0 (frontend shuffles).
 - "explanation": In ${language} explaining the answer.
-- Difficulty: ${difficulty}${wordsInstruction}
+- Topics: ${topics}
 - All 4 English options should be plausible but only 1 correct.
 
 Return ONLY valid JSON. No markdown, no extra text.`;
@@ -859,7 +861,7 @@ Return ONLY valid JSON. No markdown, no extra text.`;
 
   const userPrompt = `Generate 1 English learning quiz question for a ${language} speaker.
 Difficulty: ${difficulty}
-${hasWords ? `Use ONLY these learned words:\n${wordsList}` : `Topics: ${topics}`}
+Topics: ${topics}
 Question MUST be in ${language}. Options MUST be in English.
 
 ${example}

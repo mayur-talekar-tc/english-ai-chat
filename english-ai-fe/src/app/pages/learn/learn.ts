@@ -143,8 +143,6 @@ export class Learn implements OnDestroy {
   // Confetti
   quizConfetti = signal<{ left: string; color: string; delay: string }[]>([]);
 
-  showQuizButton = signal(false);
-
   // Spelling state
   spellingWords = signal<DailyWord[]>([]);
   spellingIndex = signal(0);
@@ -259,10 +257,6 @@ export class Learn implements OnDestroy {
           if (learned.size >= data.words.length) {
             this.todayComplete.set(true);
           }
-          // Show quiz button after 10 words learned
-          if (learned.size >= 10) {
-            this.showQuizButton.set(true);
-          }
           return;
         }
       } catch {}
@@ -332,11 +326,6 @@ export class Learn implements OnDestroy {
 
     const today = new Date().toISOString().split('T')[0];
     this.saveTodayState(today, this.words(), Array.from(newLearned));
-
-    // Show quiz button after 10 words
-    if (newLearned.size >= 10) {
-      this.showQuizButton.set(true);
-    }
 
     if (newLearned.size >= this.words().length) {
       this.todayComplete.set(true);
@@ -491,16 +480,9 @@ export class Learn implements OnDestroy {
 
     const requestId = ++this.quizRequestId;
 
-    // Send today's learned words so quiz is based on them
-    const learnedWords = this.words().filter((_, i) => this.learnedIndices().has(i));
-    const wordsPayload = learnedWords.length > 0
-      ? learnedWords.map(w => ({ english: w.english, native: w.native, meaning: w.meaning }))
-      : this.words().map(w => ({ english: w.english, native: w.native, meaning: w.meaning }));
-
     this.http.post<{ success: boolean; question: QuizQuestion }>(`${AI_API_URL}/quiz`, {
       language: this.selectedLanguageName(),
       difficulty: this.quizDifficulty(),
-      words: wordsPayload,
     }).subscribe({
       next: (res) => {
         if (requestId !== this.quizRequestId) return;
