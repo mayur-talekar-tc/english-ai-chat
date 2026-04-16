@@ -28,14 +28,12 @@ html {
 }
 
 ::-webkit-scrollbar {
-  width: 6px;
+  display: none;
 }
-::-webkit-scrollbar-track {
-  background: #f1f1f1;
-}
-::-webkit-scrollbar-thumb {
-  background: #22c55e;
-  border-radius: 3px;
+
+* {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 .flashcard-inner {
