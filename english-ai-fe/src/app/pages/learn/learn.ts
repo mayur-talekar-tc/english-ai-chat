@@ -5,6 +5,8 @@ import { AI_API_URL } from '../../shared/api';
 import { INDIAN_LANGUAGE_OPTIONS } from '../../shared/languages';
 import { ProgressService } from '../../services/progress';
 import { AuthService } from '../../services/auth';
+import { Reading } from '../reading/reading';
+import { Books } from '../books/books';
 
 interface DailyWord {
   english: string;
@@ -40,7 +42,7 @@ interface FillBlankSentence {
   selected?: number;
 }
 
-type LearnTab = 'today' | 'previous' | 'quiz' | 'spelling' | 'practice';
+type LearnTab = 'today' | 'previous' | 'quiz' | 'spelling' | 'practice' | 'reading' | 'books';
 type Level = 'school' | 'adults';
 
 const DAILY_WORDS_KEY = 'bhashaai_daily_words_v4';
@@ -72,7 +74,7 @@ const CATEGORY_COLORS: Record<string, string> = {
 
 @Component({
   selector: 'app-learn',
-  imports: [FormsModule],
+  imports: [FormsModule, Reading, Books],
   templateUrl: './learn.html',
   styleUrl: './learn.css',
 })

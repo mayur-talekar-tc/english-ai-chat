@@ -1471,3 +1471,80 @@ Rules:
     res.json({ success: false, error: 'Reading generation failed' });
   }
 };
+
+exports.bookSummary = async (req, res) => {
+  try {
+    let { language = 'Marathi', bookTitle, genre = 'any' } = req.body || {};
+    language = normalizeLanguageName(language);
+
+    if (!bookTitle || !String(bookTitle).trim()) {
+      return res.status(400).json({ success: false, error: 'bookTitle is required' });
+    }
+    bookTitle = String(bookTitle).trim();
+
+    const prompt = `Give a summary of the English book "${bookTitle}" for someone whose native language is ${language}.
+
+Return ONLY this JSON:
+{
+  "title": "${bookTitle}",
+  "author": "Author name",
+  "genre": "Genre",
+  "difficulty": "Easy/Medium/Hard read",
+  "one_line": "One line description in English",
+  "one_line_native": "Same in ${language}",
+  "summary_english": "3-4 sentence summary in simple English",
+  "summary_native": "Same summary in ${language}",
+  "key_lessons": ["lesson 1 in English", "lesson 2", "lesson 3"],
+  "key_lessons_native": ["lesson 1 in ${language}", "lesson 2", "lesson 3"],
+  "difficult_words": [
+    {"word": "English word", "meaning": "simple English meaning", "native": "${language} meaning"}
+  ],
+  "should_read": "Yes/No and why in ${language}",
+  "rating": "4.5/5"
+}`;
+
+    const response = await groq.chat.completions.create({
+      model: 'llama-3.1-8b-instant',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.5,
+      max_tokens: 1500,
+    });
+
+    const text = response.choices[0].message.content;
+    const parsed = parseJsonResponse(text);
+    if (!parsed) {
+      return res.json({ success: false, error: 'Could not parse book summary' });
+    }
+
+    const book = {
+      title: String(parsed.title || bookTitle).trim(),
+      author: String(parsed.author || '').trim(),
+      genre: String(parsed.genre || genre || '').trim(),
+      difficulty: String(parsed.difficulty || '').trim(),
+      one_line: String(parsed.one_line || '').trim(),
+      one_line_native: fixWrongLanguageText(String(parsed.one_line_native || '').trim(), language),
+      summary_english: String(parsed.summary_english || '').trim(),
+      summary_native: fixWrongLanguageText(String(parsed.summary_native || '').trim(), language),
+      key_lessons: Array.isArray(parsed.key_lessons) ? parsed.key_lessons.map(l => String(l).trim()).filter(Boolean) : [],
+      key_lessons_native: Array.isArray(parsed.key_lessons_native)
+        ? parsed.key_lessons_native.map(l => fixWrongLanguageText(String(l).trim(), language)).filter(Boolean)
+        : [],
+      difficult_words: Array.isArray(parsed.difficult_words)
+        ? parsed.difficult_words
+            .filter(w => w && w.word)
+            .map(w => ({
+              word: String(w.word).trim(),
+              meaning: String(w.meaning || '').trim(),
+              native: fixWrongLanguageText(String(w.native || '').trim(), language),
+            }))
+        : [],
+      should_read: fixWrongLanguageText(String(parsed.should_read || '').trim(), language),
+      rating: String(parsed.rating || '').trim(),
+    };
+
+    res.json({ success: true, book });
+  } catch (error) {
+    console.error('[AI BookSummary] Error:', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};

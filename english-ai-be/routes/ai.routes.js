@@ -12,5 +12,6 @@ router.post('/word-details', aiController.wordDetails);
 router.post('/daily-words', aiController.dailyWords);
 router.post('/fill-blank', aiController.fillBlank);
 router.post('/reading', aiController.reading);
+router.post('/book-summary', aiController.bookSummary);
 
 module.exports = router;

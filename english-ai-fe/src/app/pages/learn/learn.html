@@ -89,6 +89,22 @@
           <span class="absolute bottom-0 left-0 right-0 h-0.5 bg-green-600 rounded-full"></span>
         }
       </button>
+      <button (click)="setTab('reading')"
+        class="relative pb-3 text-sm font-bold transition-colors whitespace-nowrap"
+        [class]="activeTab() === 'reading' ? 'text-green-700' : 'text-gray-400 hover:text-gray-600'">
+        📰 Reading
+        @if (activeTab() === 'reading') {
+          <span class="absolute bottom-0 left-0 right-0 h-0.5 bg-green-600 rounded-full"></span>
+        }
+      </button>
+      <button (click)="setTab('books')"
+        class="relative pb-3 text-sm font-bold transition-colors whitespace-nowrap"
+        [class]="activeTab() === 'books' ? 'text-green-700' : 'text-gray-400 hover:text-gray-600'">
+        📚 Books
+        @if (activeTab() === 'books') {
+          <span class="absolute bottom-0 left-0 right-0 h-0.5 bg-green-600 rounded-full"></span>
+        }
+      </button>
     </nav>
 
     <!-- ==================== TODAY TAB ==================== -->
@@ -685,6 +701,16 @@
           </div>
         }
       </div>
+    }
+
+    <!-- ==================== READING TAB ==================== -->
+    @if (activeTab() === 'reading') {
+      <app-reading></app-reading>
+    }
+
+    <!-- ==================== BOOKS TAB ==================== -->
+    @if (activeTab() === 'books') {
+      <app-books></app-books>
     }
 
   </div>
