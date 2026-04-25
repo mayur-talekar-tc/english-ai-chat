@@ -17,6 +17,7 @@ export class Voice implements OnDestroy {
   // Sub-mode inside Single Language: 'practice' or 'translate'
   mode = signal<'practice' | 'translate'>('translate');
 
+  micPermission = signal<'granted' | 'denied' | 'prompt' | 'unknown'>('unknown');
   isListening = signal(false);
   isPlaying = signal(false);
   isTranslating = signal(false);
@@ -186,6 +187,29 @@ export class Voice implements OnDestroy {
     this.loadNewPrompt();
     speechSynthesis.getVoices();
     speechSynthesis.onvoiceschanged = () => speechSynthesis.getVoices();
+    this.checkMicPermission();
+  }
+
+  private checkMicPermission() {
+    if (navigator.permissions) {
+      navigator.permissions.query({ name: 'microphone' as PermissionName }).then(result => {
+        this.micPermission.set(result.state as 'granted' | 'denied' | 'prompt');
+        result.onchange = () => {
+          this.micPermission.set(result.state as 'granted' | 'denied' | 'prompt');
+        };
+      }).catch(() => {
+        this.micPermission.set('unknown');
+      });
+    }
+  }
+
+  requestMicPermission() {
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+      stream.getTracks().forEach(t => t.stop());
+      this.micPermission.set('granted');
+    }).catch(() => {
+      this.micPermission.set('denied');
+    });
   }
 
   ngOnDestroy() {
@@ -391,6 +415,10 @@ export class Voice implements OnDestroy {
 
     this.recognition.onerror = (event: any) => {
       this.isListening.set(false);
+      if (event.error === 'not-allowed') {
+        this.micPermission.set('denied');
+        return;
+      }
       const msg = event.error === 'no-speech' ? 'No speech detected. Please try again.' : 'Error: ' + event.error;
       if (isMulti) this.multiError.set(msg);
       else this.feedback.set(msg);

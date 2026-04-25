@@ -7,6 +7,32 @@
       <p class="text-gray-500 text-sm">Learn English through your Indian language</p>
     </div>
 
+    <!-- Microphone Permission Banner -->
+    @if (micPermission() === 'denied') {
+      <div class="bg-red-50 border-2 border-red-200 rounded-2xl p-6 mb-6 text-center">
+        <div class="text-4xl mb-3">🎙️🚫</div>
+        <h3 class="text-lg font-bold text-red-700 mb-2">Microphone Access Denied</h3>
+        <p class="text-sm text-red-600 mb-4">Voice practice needs microphone permission to work. Please allow microphone access in your browser settings.</p>
+        <div class="bg-white rounded-xl p-4 text-left text-sm text-gray-600 max-w-sm mx-auto">
+          <p class="font-semibold text-gray-800 mb-2">How to enable:</p>
+          <p class="flex items-start gap-2 mb-1"><span class="text-red-500">1.</span> Click the lock/info icon in your browser's address bar</p>
+          <p class="flex items-start gap-2 mb-1"><span class="text-red-500">2.</span> Find "Microphone" permission</p>
+          <p class="flex items-start gap-2"><span class="text-red-500">3.</span> Change it to "Allow" and refresh the page</p>
+        </div>
+      </div>
+    } @else if (micPermission() === 'prompt' || micPermission() === 'unknown') {
+      <div class="bg-yellow-50 border-2 border-yellow-200 rounded-2xl p-6 mb-6 text-center">
+        <div class="text-4xl mb-3">🎙️</div>
+        <h3 class="text-lg font-bold text-yellow-700 mb-2">Microphone Permission Required</h3>
+        <p class="text-sm text-yellow-600 mb-4">We need access to your microphone for voice practice. Your audio is not stored.</p>
+        <button
+          (click)="requestMicPermission()"
+          class="bg-gradient-to-r from-green-600 to-green-500 text-white px-8 py-3 rounded-full font-bold hover:shadow-lg hover:shadow-green-500/25 transition-all active:scale-[0.97]">
+          Allow Microphone Access
+        </button>
+      </div>
+    }
+
     <!-- Section Toggle: Single Language vs Multi Voice -->
     <div class="flex justify-center mb-4">
       <div class="inline-flex bg-white rounded-xl border border-gray-200 p-1">
