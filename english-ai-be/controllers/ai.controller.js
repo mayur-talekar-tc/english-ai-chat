@@ -543,20 +543,21 @@ function normalizeVocabularyWords(payload, language) {
 
 async function generateModelText(prompt) {
   const result = await groq.chat.completions.create({
-    model: 'llama-3.1-8b-instant',
+    model: 'llama-3.3-70b-versatile',
     messages: [{ role: 'user', content: prompt }],
+    temperature: 0.3,
   });
   return result.choices[0].message.content;
 }
 
 async function generateWithSystem(systemPrompt, userPrompt) {
   const result = await groq.chat.completions.create({
-    model: 'llama-3.1-8b-instant',
+    model: 'llama-3.3-70b-versatile',
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt },
     ],
-    temperature: 0.8,
+    temperature: 0.3,
   });
   return result.choices[0].message.content;
 }
@@ -569,7 +570,7 @@ async function generateChatWithHistory(systemPrompt, history) {
   const result = await groq.chat.completions.create({
     model: 'llama-3.3-70b-versatile',
     messages,
-    temperature: 0.7,
+    temperature: 0.3,
   });
   return result.choices[0].message.content;
 }
@@ -1504,9 +1505,9 @@ Return ONLY this JSON:
 }`;
 
     const response = await groq.chat.completions.create({
-      model: 'llama-3.1-8b-instant',
+      model: 'llama-3.3-70b-versatile',
       messages: [{ role: 'user', content: prompt }],
-      temperature: 0.5,
+      temperature: 0.3,
       max_tokens: 1500,
     });
 
