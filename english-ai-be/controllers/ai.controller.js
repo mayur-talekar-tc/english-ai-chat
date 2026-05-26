@@ -1,6 +1,9 @@
 const Groq = require('groq-sdk');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const groq = new Groq({ apiKey: process.env.GROQ_CLOUD });
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const geminiModel = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
 // In-memory cache for daily words (keyed by date+language).
 // Bumped cache version to invalidate stale entries with wrong translations.
@@ -119,6 +122,46 @@ function buildLanguageGuide(language) {
     : '';
 
   return scriptBlock + bankBlock + '\n';
+}
+
+// Translation helper — tries Gemini first, falls back to Groq.
+async function translate(text, targetLanguage) {
+  if (!text || !text.trim()) return text;
+
+  const langGuide = buildLanguageGuide(targetLanguage);
+  const prompt = `You are a professional ${targetLanguage} translator. Translate the following English text into ${targetLanguage} using ONLY the native ${targetLanguage} script. Do NOT use Roman/English letters. Return ONLY the translated text, nothing else.
+
+${langGuide}
+
+English: "${text}"
+
+${targetLanguage} translation:`;
+
+  // Try Gemini first
+  try {
+    const result = await geminiModel.generateContent(prompt);
+    const translated = result.response.text().trim();
+    if (translated && translated.toLowerCase() !== text.toLowerCase()) {
+      return translated;
+    }
+  } catch (e) {
+    console.error('[Gemini Translate] Failed, using Groq:', e.message);
+  }
+
+  // Fallback to Groq
+  try {
+    const result = await groq.chat.completions.create({
+      model: 'llama-3.3-70b-versatile',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.3,
+    });
+    const translated = result.choices[0].message.content.trim();
+    if (translated) return translated;
+  } catch (e) {
+    console.error('[Groq Translate] Failed:', e.message);
+  }
+
+  return text;
 }
 
 // Verified English->native lookup used to override LLM output for
@@ -1070,8 +1113,17 @@ ${excludeLine}
     const parsed = parseJsonResponse(text);
     const words = normalizeVocabularyWords(parsed, language);
 
-    console.log('[AI Vocabulary] Success, words:', words.length);
-    res.json({ words });
+    // Re-translate native fields with Gemini for better accuracy
+    const enhanced = await Promise.all(words.map(async (w) => {
+      const [native, exNative] = await Promise.all([
+        translate(w.word, language),
+        w.example ? translate(w.example, language) : Promise.resolve(w.example_native || ''),
+      ]);
+      return { ...w, native, example_native: exNative };
+    }));
+
+    console.log('[AI Vocabulary] Success, words:', enhanced.length);
+    res.json({ words: enhanced });
   } catch (error) {
     console.error('[AI Vocabulary] Error:', error.message);
     res.json({ words: [] });
@@ -1443,21 +1495,30 @@ Rules:
     const parsed = parseJsonResponse(text);
 
     if (parsed && Array.isArray(parsed.sentences) && parsed.sentences.length > 0) {
-      const sentences = parsed.sentences
+      const rawSentences = parsed.sentences
         .filter(s => s && s.english)
         .map(s => {
           const english = String(s.english).trim();
-          const native = fixWrongLanguageText(String(s.native || '').trim(), language);
           let words = Array.isArray(s.words) ? s.words.map(w => String(w).trim()).filter(Boolean) : [];
-          // Only keep words that actually appear in the sentence (case-insensitive)
           words = words.filter(w => new RegExp(`\\b${w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(english));
-          return { english, native, words };
+          return { english, words };
         })
         .filter(s => s.english);
 
+      // Re-translate native fields with Gemini for accuracy
+      const [titleNative, ...nativeTranslations] = await Promise.all([
+        translate(String(parsed.title || 'Reading').trim(), language),
+        ...rawSentences.map(s => translate(s.english, language)),
+      ]);
+
+      const sentences = rawSentences.map((s, i) => ({
+        ...s,
+        native: nativeTranslations[i],
+      }));
+
       const article = {
         title: String(parsed.title || 'Reading').trim(),
-        title_native: fixWrongLanguageText(String(parsed.title_native || '').trim(), language),
+        title_native: titleNative,
         topic: String(parsed.topic || '').trim(),
         difficulty,
         sentences,
@@ -1517,29 +1578,39 @@ Return ONLY this JSON:
       return res.json({ success: false, error: 'Could not parse book summary' });
     }
 
+    const oneLineEn = String(parsed.one_line || '').trim();
+    const summaryEn = String(parsed.summary_english || '').trim();
+    const keyLessons = Array.isArray(parsed.key_lessons) ? parsed.key_lessons.map(l => String(l).trim()).filter(Boolean) : [];
+    const shouldReadEn = String(parsed.should_read || '').trim();
+    const diffWords = Array.isArray(parsed.difficult_words)
+      ? parsed.difficult_words.filter(w => w && w.word).map(w => ({ word: String(w.word).trim(), meaning: String(w.meaning || '').trim() }))
+      : [];
+
+    // Re-translate all native fields with Gemini for accuracy
+    const [oneLineNative, summaryNative, shouldReadNative, ...rest] = await Promise.all([
+      translate(oneLineEn, language),
+      translate(summaryEn, language),
+      translate(shouldReadEn, language),
+      ...keyLessons.map(l => translate(l, language)),
+      ...diffWords.map(w => translate(w.word, language)),
+    ]);
+
+    const keyLessonsNative = rest.slice(0, keyLessons.length);
+    const wordNatives = rest.slice(keyLessons.length);
+
     const book = {
       title: String(parsed.title || bookTitle).trim(),
       author: String(parsed.author || '').trim(),
       genre: String(parsed.genre || genre || '').trim(),
       difficulty: String(parsed.difficulty || '').trim(),
-      one_line: String(parsed.one_line || '').trim(),
-      one_line_native: fixWrongLanguageText(String(parsed.one_line_native || '').trim(), language),
-      summary_english: String(parsed.summary_english || '').trim(),
-      summary_native: fixWrongLanguageText(String(parsed.summary_native || '').trim(), language),
-      key_lessons: Array.isArray(parsed.key_lessons) ? parsed.key_lessons.map(l => String(l).trim()).filter(Boolean) : [],
-      key_lessons_native: Array.isArray(parsed.key_lessons_native)
-        ? parsed.key_lessons_native.map(l => fixWrongLanguageText(String(l).trim(), language)).filter(Boolean)
-        : [],
-      difficult_words: Array.isArray(parsed.difficult_words)
-        ? parsed.difficult_words
-            .filter(w => w && w.word)
-            .map(w => ({
-              word: String(w.word).trim(),
-              meaning: String(w.meaning || '').trim(),
-              native: fixWrongLanguageText(String(w.native || '').trim(), language),
-            }))
-        : [],
-      should_read: fixWrongLanguageText(String(parsed.should_read || '').trim(), language),
+      one_line: oneLineEn,
+      one_line_native: oneLineNative,
+      summary_english: summaryEn,
+      summary_native: summaryNative,
+      key_lessons: keyLessons,
+      key_lessons_native: keyLessonsNative,
+      difficult_words: diffWords.map((w, i) => ({ ...w, native: wordNatives[i] || '' })),
+      should_read: shouldReadNative,
       rating: String(parsed.rating || '').trim(),
     };
 
