@@ -1326,12 +1326,18 @@ Rules:
 };
 
 exports.dailyWords = async (req, res) => {
-  let { language = 'Hindi', date, level = 'school', excludeWords = [] } = req.body || {};
+  let { language = 'Hindi', date, difficulty = 'beginner', level, excludeWords = [] } = req.body || {};
+  // Support old 'level' param: school->beginner, adults->intermediate
+  if (!req.body?.difficulty && level) {
+    difficulty = level === 'adults' ? 'intermediate' : 'beginner';
+  }
+  const allowed = ['beginner', 'intermediate', 'advanced'];
+  if (!allowed.includes(difficulty)) difficulty = 'beginner';
   language = normalizeLanguageName(language);
   const today = date || new Date().toISOString().split('T')[0];
-  const cacheKey = `${CACHE_VERSION}_${today}_${language.toLowerCase()}_${level}`;
+  const cacheKey = `${CACHE_VERSION}_${today}_${language.toLowerCase()}_${difficulty}`;
 
-  // Return cached words for same day+language+level
+  // Return cached words for same day+language+difficulty
   if (dailyWordsCache.has(cacheKey)) {
     console.log('[AI DailyWords] Cache hit:', cacheKey);
     return res.json({ success: true, words: dailyWordsCache.get(cacheKey), date: today });
@@ -1341,13 +1347,35 @@ exports.dailyWords = async (req, res) => {
     ? `\nIMPORTANT: Do NOT include any of these words (already learned): ${excludeWords.slice(0, 200).join(', ')}.`
     : '';
 
-  const levelDesc = level === 'adults'
-    ? 'Generate advanced/intermediate vocabulary words for adult learners. Include professional, business, medical, legal, technology, travel, and sophisticated everyday words. Words should be useful for working professionals and adults.'
-    : 'Generate simple school-level vocabulary words for young students. Words should be common everyday words a school kid would use. Pick from: Animals, Fruits, Vegetables, Colors, Numbers, Body Parts, Family, School Items, Food, Nature.';
+  const difficultyConfig = {
+    beginner: {
+      desc: `Generate simple, basic English vocabulary words for BEGINNERS.
+These should be the EASIEST, most common everyday words that a child or absolute beginner would learn first.
+ONLY use words like: cat, dog, apple, water, mother, father, sun, moon, tree, house, school, bird, fish, cow, red, blue, one, two, happy, sad, book, hand, eye, milk, rice, ball, door, pen, chair, table, bread, egg, rain, flower, star, bed, eat, run, big, small.
+Do NOT use intermediate or advanced words. Keep it extremely simple.`,
+      categories: 'Animals, Fruits, Vegetables, Colors, Numbers, Body Parts, Family, School Items, Food, Nature',
+      example: { word: 'Cat', native: `CORRECT ${language} translation of Cat`, meaning: 'A small pet animal', example: 'The cat is sleeping.', emoji: '🐱', category: 'Animals' },
+    },
+    intermediate: {
+      desc: `Generate INTERMEDIATE English vocabulary words for learners who already know basic words.
+Do NOT use simple beginner words like cat, dog, apple, water, mother, sun, moon, tree, house, bird, fish, red, blue.
+ONLY use medium-complexity words like: beautiful, hospital, journey, angry, market, delicious, difficult, dream, friendship, courage, expensive, remember, important, problem, success, weather, travel, language, culture, opportunity, knowledge, adventure, decision, education, celebrate, encourage, medicine, exercise, creative, environment, furniture, comfortable, electricity, dangerous, instrument, passenger, restaurant, volunteer, government, celebrate.
+These words should be useful for daily conversations and intermediate learners.`,
+      categories: 'Daily Life, Emotions, Travel, Health, Business, Food, Nature, Society, Technology, Education',
+      example: { word: 'Journey', native: `CORRECT ${language} translation of Journey`, meaning: 'A trip from one place to another', example: 'The journey to the mountains was exciting.', emoji: '🧳', category: 'Travel' },
+    },
+    advanced: {
+      desc: `Generate ADVANCED English vocabulary words for proficient learners.
+Do NOT use simple words like cat, dog, apple, water, house, tree, bird, red, blue.
+Do NOT use intermediate words like beautiful, hospital, journey, market, expensive.
+ONLY use complex, professional, academic words like: ambitious, collaborate, innovative, perseverance, eloquent, negotiate, consequence, sustainable, empathy, integrity, phenomenon, sophisticated, predominantly, circumstances, accomplishment, determination, responsibility, extraordinary, perspective, achievement, comprehensive, approximately, controversial, infrastructure, bureaucracy, entrepreneur, philosophical, unprecedented, surveillance, rehabilitation, jurisdiction, meticulous, preliminary, congregation, deteriorate, hypothetical, indispensable, conscientious, predominantly.
+These should be words used in professional, academic, or formal contexts.`,
+      categories: 'Business, Technology, Science, Society, Health, Education, Law, Philosophy, Environment, Leadership',
+      example: { word: 'Perseverance', native: `CORRECT ${language} translation of Perseverance`, meaning: 'Continued effort despite difficulties', example: 'Her perseverance helped her succeed.', emoji: '💪', category: 'Leadership' },
+    },
+  };
 
-  const categoryList = level === 'adults'
-    ? 'Business, Technology, Health, Travel, Emotions, Food, Nature, Society, Science, Daily Life'
-    : 'Animals, Fruits, Vegetables, Colors, Numbers, Body Parts, Family, School Items, Food, Nature';
+  const config = difficultyConfig[difficulty];
 
   // Generate batches of 10 until we have 30 unique words (max 5 attempts)
   const allWords = [];
@@ -1355,7 +1383,7 @@ exports.dailyWords = async (req, res) => {
   const MAX_BATCHES = 5;
 
   try {
-    console.log('[AI DailyWords] Request:', { language, date: today, level, target: TARGET });
+    console.log('[AI DailyWords] Request:', { language, date: today, difficulty, target: TARGET });
 
     for (let batch = 0; batch < MAX_BATCHES && allWords.length < TARGET; batch++) {
       const remaining = TARGET - allWords.length;
@@ -1366,12 +1394,14 @@ exports.dailyWords = async (req, res) => {
 
       const languageGuide = buildLanguageGuide(language);
 
-      const prompt = `${levelDesc}
+      const prompt = `${config.desc}
+
 The student speaks ${language} and wants to learn ENGLISH.
+Current difficulty level: ${difficulty.toUpperCase()}
 
 ${languageGuide}
 
-Generate exactly 10 unique BEGINNER English vocabulary words.
+Generate exactly 10 unique ${difficulty.toUpperCase()}-level English vocabulary words.
 Mix different categories. Every word must be different.
 ${excludeLine}${batchExclude}
 
@@ -1379,28 +1409,29 @@ Return ONLY valid JSON with this exact shape:
 {
   "words": [
     {
-      "english": "Apple",
-      "native": "CORRECT ${language} translation of Apple",
+      "english": "${config.example.word}",
+      "native": "${config.example.native}",
       "transliteration": "Roman pronunciation of the ${language} word",
-      "meaning": "A sweet red fruit",
-      "example": "I eat an apple every day.",
+      "meaning": "${config.example.meaning}",
+      "example": "${config.example.example}",
       "example_native": "CORRECT ${language} translation of that English sentence",
-      "emoji": "🍎",
-      "category": "Fruits"
+      "emoji": "${config.example.emoji}",
+      "category": "${config.example.category}"
     }
   ]
 }
 
 Rules:
-- "english": simple English word in ASCII letters (e.g. "Apple", "Dog", "Mother").
+- "english": English word in ASCII letters matching ${difficulty} difficulty.
 - "native": the CORRECT, fully spelled ${language} word in its native script. NEVER use Hindi when asked for Marathi. NEVER use a single character.
 - "transliteration": Roman pronunciation of the ${language} word.
 - "meaning": short English meaning (4-8 words).
-- "example": simple English sentence using the word.
+- "example": English sentence using the word appropriate for ${difficulty} level.
 - "example_native": CORRECT ${language} translation of that English sentence.
 - "emoji": one relevant emoji.
-- "category": one of ${categoryList}.
+- "category": one of ${config.categories}.
 - All 10 words MUST be unique and from different categories.
+- STRICTLY follow the ${difficulty} difficulty level. Do NOT mix difficulty levels.
 - Return ONLY valid JSON, no markdown, no code fences.`;
 
       const text = await generateModelText(prompt);

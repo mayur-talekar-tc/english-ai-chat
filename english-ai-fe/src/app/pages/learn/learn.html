@@ -26,8 +26,8 @@
       </div>
     </div>
 
-    <!-- ===== LANGUAGE + LEVEL SELECTORS ===== -->
-    <div class="flex flex-wrap gap-3 mb-6 sm:mb-8">
+    <!-- ===== LANGUAGE + DIFFICULTY SELECTORS ===== -->
+    <div class="flex flex-wrap items-center gap-3 mb-6 sm:mb-8">
       <select
         [value]="selectedLanguage()"
         (change)="onLanguageChange($event)"
@@ -37,14 +37,23 @@
           <option [value]="lang.code">{{ lang.flag }} {{ lang.name }}</option>
         }
       </select>
-      <select
-        [value]="level()"
-        (change)="onLevelChange($event)"
-        class="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 shadow-sm outline-none focus:border-green-400 focus:ring-2 focus:ring-green-100 transition-all"
-      >
-        <option value="school">🎒 School</option>
-        <option value="adults">💼 Adults</option>
-      </select>
+      <div class="flex gap-2">
+        <button (click)="setDifficulty('beginner')"
+          class="rounded-xl px-4 py-2 text-sm font-bold transition-all border-2"
+          [class]="difficulty() === 'beginner' ? 'border-green-400 bg-green-50 text-green-700' : 'border-gray-200 bg-white text-gray-500 hover:border-green-300'">
+          🌱 Beginner
+        </button>
+        <button (click)="setDifficulty('intermediate')"
+          class="rounded-xl px-4 py-2 text-sm font-bold transition-all border-2"
+          [class]="difficulty() === 'intermediate' ? 'border-blue-400 bg-blue-50 text-blue-700' : 'border-gray-200 bg-white text-gray-500 hover:border-blue-300'">
+          📚 Intermediate
+        </button>
+        <button (click)="setDifficulty('advanced')"
+          class="rounded-xl px-4 py-2 text-sm font-bold transition-all border-2"
+          [class]="difficulty() === 'advanced' ? 'border-purple-400 bg-purple-50 text-purple-700' : 'border-gray-200 bg-white text-gray-500 hover:border-purple-300'">
+          🚀 Advanced
+        </button>
+      </div>
     </div>
 
     <!-- ===== NAVIGATION TABS ===== -->
@@ -86,7 +95,7 @@
           <div class="bg-white/70 backdrop-blur-xl rounded-2xl border border-white/40 px-6 py-16 text-center shadow-lg animate-fade-in">
             <div class="mx-auto mb-4 h-12 w-12 rounded-full border-4 border-green-100 border-t-green-500 animate-spin"></div>
             <p class="text-lg font-bold text-gray-900">Generating words...</p>
-            <p class="mt-1 text-sm text-gray-500">{{ selectedLanguageName() }} · {{ levelLabel() }} level</p>
+            <p class="mt-1 text-sm text-gray-500">{{ selectedLanguageName() }} · {{ difficultyLabel() }}</p>
           </div>
         }
 

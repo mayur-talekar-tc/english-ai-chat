@@ -18,12 +18,12 @@ interface DailyWord {
 }
 
 type LearnTab = 'today' | 'spelling' | 'reading';
-type Level = 'school' | 'adults';
+type Difficulty = 'beginner' | 'intermediate' | 'advanced';
 
-const DAILY_WORDS_KEY = 'bhashaai_daily_words_v4';
+const DAILY_WORDS_KEY = 'bhashaai_daily_words_v5';
 const STREAK_KEY = 'bhashaai_learn_streak';
 const LEARNED_KEY = 'bhashaai_learned_history';
-const LEVEL_KEY = 'bhashaai_learn_level';
+const DIFFICULTY_KEY = 'bhashaai_learn_difficulty';
 const LANG_KEY = 'bhashaai_learn_language';
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -61,7 +61,7 @@ export class Learn {
   readonly indianLanguages = INDIAN_LANGUAGE_OPTIONS;
 
   activeTab = signal<LearnTab>('today');
-  level = signal<Level>('school');
+  difficulty = signal<Difficulty>('beginner');
   selectedLanguage = signal('hindi');
   words = signal<DailyWord[]>([]);
   currentIndex = signal(0);
@@ -91,14 +91,19 @@ export class Learn {
     if (!total) return 0;
     return Math.min((this.learnedCount() / total) * 100, 100);
   });
-  levelLabel = computed(() => this.level() === 'school' ? 'School' : 'Adults');
+  difficultyLabel = computed(() => {
+    const d = this.difficulty();
+    if (d === 'beginner') return 'Beginner';
+    if (d === 'intermediate') return 'Intermediate';
+    return 'Advanced';
+  });
   selectedLanguageName = computed(() => {
     const lang = this.indianLanguages.find(l => l.code === this.selectedLanguage());
     return lang ? lang.name : 'Hindi';
   });
 
   constructor() {
-    this.loadLevel();
+    this.loadDifficulty();
     this.loadLanguage();
     this.loadStreak();
     this.loadTodayWords();
@@ -111,11 +116,10 @@ export class Learn {
     }
   }
 
-  onLevelChange(event: Event) {
-    const select = event.target as HTMLSelectElement;
-    const newLevel = select.value as Level;
-    this.level.set(newLevel);
-    localStorage.setItem(LEVEL_KEY, newLevel);
+  setDifficulty(diff: Difficulty) {
+    if (this.difficulty() === diff) return;
+    this.difficulty.set(diff);
+    localStorage.setItem(DIFFICULTY_KEY, diff);
     this.todayComplete.set(false);
     this.learnedIndices.set(new Set());
     this.reviewIndices.set(new Set());
@@ -124,10 +128,10 @@ export class Learn {
     this.fetchDailyWords(new Date().toISOString().split('T')[0]);
   }
 
-  private loadLevel() {
-    const saved = localStorage.getItem(LEVEL_KEY);
-    if (saved === 'school' || saved === 'adults') {
-      this.level.set(saved);
+  private loadDifficulty() {
+    const saved = localStorage.getItem(DIFFICULTY_KEY);
+    if (saved === 'beginner' || saved === 'intermediate' || saved === 'advanced') {
+      this.difficulty.set(saved);
     }
   }
 
@@ -158,7 +162,7 @@ export class Learn {
     if (saved) {
       try {
         const data = JSON.parse(saved);
-        if (data.date === today && data.level === this.level() && data.language === this.selectedLanguage() && Array.isArray(data.words) && data.words.length > 0) {
+        if (data.date === today && data.difficulty === this.difficulty() && data.language === this.selectedLanguage() && Array.isArray(data.words) && data.words.length > 0) {
           this.words.set(data.words);
           const learned = new Set<number>(data.learned || []);
           this.learnedIndices.set(learned);
@@ -181,7 +185,7 @@ export class Learn {
       .post<{ success: boolean; words: DailyWord[]; date: string }>(`${AI_API_URL}/daily-words`, {
         language: this.selectedLanguageName(),
         date: today,
-        level: this.level(),
+        difficulty: this.difficulty(),
         excludeWords: allLearned,
       })
       .subscribe({
@@ -215,7 +219,7 @@ export class Learn {
   }
 
   private saveTodayState(date: string, words: DailyWord[], learned: number[]) {
-    localStorage.setItem(DAILY_WORDS_KEY, JSON.stringify({ date, words, learned, level: this.level(), language: this.selectedLanguage() }));
+    localStorage.setItem(DAILY_WORDS_KEY, JSON.stringify({ date, words, learned, difficulty: this.difficulty(), language: this.selectedLanguage() }));
   }
 
   // === CARD ACTIONS ===
@@ -277,14 +281,14 @@ export class Learn {
   // === HISTORY ===
   private saveTodayToHistory(today: string) {
     const saved = localStorage.getItem(LEARNED_KEY);
-    let history: { date: string; words: DailyWord[]; level?: string }[] = [];
+    let history: { date: string; words: DailyWord[] }[] = [];
     if (saved) {
       try { history = JSON.parse(saved); } catch {}
     }
 
     if (history.some(h => h.date === today)) return;
 
-    history.unshift({ date: today, words: this.words(), level: this.level() });
+    history.unshift({ date: today, words: this.words() });
     history = history.slice(0, 30);
     localStorage.setItem(LEARNED_KEY, JSON.stringify(history));
   }
