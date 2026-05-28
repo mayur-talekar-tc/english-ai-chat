@@ -1275,16 +1275,30 @@ Rules:
     const parsed = parseJsonResponse(text);
 
     if (parsed && Array.isArray(parsed.sentences) && parsed.sentences.length > 0) {
-      const sentences = parsed.sentences
+      const rawSentences = parsed.sentences
         .filter(s => s.sentence && s.blank_word && Array.isArray(s.options) && s.options.length === 4)
         .slice(0, 10)
         .map(s => ({
           sentence: s.sentence,
-          sentence_native: fixWrongLanguageText(String(s.sentence_native || '').trim(), language),
-          blank_word: s.blank_word,
-          options: s.options,
+          blank_word: String(s.blank_word).trim(),
+          options: s.options.map(o => String(o).trim()),
           correct: typeof s.correct === 'number' ? s.correct : 0,
+          // Build the full English sentence for translation
+          fullEnglish: String(s.sentence).replace('___', String(s.blank_word).trim()),
         }));
+
+      // Re-translate sentence_native with Groq/Gemini for accuracy
+      const nativeTranslations = await Promise.all(
+        rawSentences.map(s => translate(s.fullEnglish, language))
+      );
+
+      const sentences = rawSentences.map((s, i) => ({
+        sentence: s.sentence,
+        sentence_native: nativeTranslations[i],
+        blank_word: s.blank_word,
+        options: s.options,
+        correct: s.correct,
+      }));
 
       return res.json({ success: true, sentences });
     }

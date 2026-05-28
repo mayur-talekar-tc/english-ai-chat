@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal, OnDestroy } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { AI_API_URL } from '../../shared/api';
@@ -6,7 +6,6 @@ import { INDIAN_LANGUAGE_OPTIONS } from '../../shared/languages';
 import { ProgressService } from '../../services/progress';
 import { AuthService } from '../../services/auth';
 import { Reading } from '../reading/reading';
-import { Books } from '../books/books';
 
 interface DailyWord {
   english: string;
@@ -18,31 +17,7 @@ interface DailyWord {
   category: string;
 }
 
-interface DayHistory {
-  date: string;
-  label: string;
-  words: DailyWord[];
-  level: string;
-}
-
-interface QuizQuestion {
-  display: string;
-  question_type: string;
-  options: string[];
-  correct: number;
-  explanation: string;
-}
-
-interface FillBlankSentence {
-  sentence: string;
-  sentence_native?: string;
-  blank_word: string;
-  options: string[];
-  correct: number;
-  selected?: number;
-}
-
-type LearnTab = 'today' | 'previous' | 'quiz' | 'spelling' | 'practice' | 'reading' | 'books';
+type LearnTab = 'today' | 'spelling' | 'reading';
 type Level = 'school' | 'adults';
 
 const DAILY_WORDS_KEY = 'bhashaai_daily_words_v4';
@@ -74,17 +49,16 @@ const CATEGORY_COLORS: Record<string, string> = {
 
 @Component({
   selector: 'app-learn',
-  imports: [FormsModule, Reading, Books],
+  imports: [FormsModule, Reading],
   templateUrl: './learn.html',
   styleUrl: './learn.css',
 })
-export class Learn implements OnDestroy {
+export class Learn {
   private http = inject(HttpClient);
   progress = inject(ProgressService);
   auth = inject(AuthService);
 
   readonly indianLanguages = INDIAN_LANGUAGE_OPTIONS;
-  readonly QUIZ_TOTAL = 10;
 
   activeTab = signal<LearnTab>('today');
   level = signal<Level>('school');
@@ -97,53 +71,6 @@ export class Learn implements OnDestroy {
   reviewIndices = signal<Set<number>>(new Set());
   todayComplete = signal(false);
   streak = signal(0);
-  dailyHistory = signal<DayHistory[]>([]);
-  reviewingDay = signal<DayHistory | null>(null);
-
-  // Quiz state (API-based, merged from Quiz page)
-  quizQuestion = signal<QuizQuestion | null>(null);
-  quizShuffledOptions = signal<string[]>([]);
-  quizShuffledCorrect = signal(0);
-  quizQuestionNum = signal(0);
-  quizScore = signal(0);
-  quizSelectedOption = signal<number | null>(null);
-  quizAnswered = signal(false);
-  quizFinished = signal(false);
-  quizLoading = signal(false);
-  quizError = signal('');
-  quizStarted = signal(false);
-  quizDifficulty = signal<'beginner' | 'intermediate' | 'advanced'>('beginner');
-  private quizRequestId = 0;
-
-  // Quiz timer
-  quizTimer = signal(30);
-  quizTimerExpired = signal(false);
-  private quizTimerInterval: ReturnType<typeof setInterval> | null = null;
-  readonly quizCircumference = 2 * Math.PI * 38;
-
-  quizTimerColor = computed(() => {
-    const t = this.quizTimer();
-    if (t > 20) return '#22c55e';
-    if (t > 10) return '#eab308';
-    return '#ef4444';
-  });
-
-  quizTimerDash = computed(() => {
-    return this.quizCircumference - (this.quizTimer() / 30) * this.quizCircumference;
-  });
-
-  quizScorePercent = computed(() => Math.round((this.quizScore() / this.QUIZ_TOTAL) * 100));
-
-  quizResultMessage = computed(() => {
-    const p = this.quizScorePercent();
-    if (p === 100) return 'Perfect! You are amazing! 🏆';
-    if (p >= 80) return 'Great job! Keep learning! 🌟';
-    if (p >= 60) return 'Good effort! Practice more! 📚';
-    return 'Keep going! You will get better! 💪';
-  });
-
-  // Confetti
-  quizConfetti = signal<{ left: string; color: string; delay: string }[]>([]);
 
   // Spelling state
   spellingWords = signal<DailyWord[]>([]);
@@ -155,14 +82,6 @@ export class Learn implements OnDestroy {
   spellingTotal = signal(0);
   spellingFinished = signal(false);
 
-  // Fill in the blank state
-  fillBlankSentences = signal<FillBlankSentence[]>([]);
-  fillBlankIndex = signal(0);
-  fillBlankFinished = signal(false);
-  fillBlankScore = signal(0);
-  fillBlankLoading = signal(false);
-  fillBlankResult = signal<'correct' | 'wrong' | null>(null);
-
   // Computed
   currentCard = computed(() => this.words()[this.currentIndex()] ?? null);
   learnedCount = computed(() => this.learnedIndices().size);
@@ -172,7 +91,6 @@ export class Learn implements OnDestroy {
     if (!total) return 0;
     return Math.min((this.learnedCount() / total) * 100, 100);
   });
-  goalComplete = computed(() => this.learnedCount() >= this.totalWords() && this.totalWords() > 0);
   levelLabel = computed(() => this.level() === 'school' ? 'School' : 'Adults');
   selectedLanguageName = computed(() => {
     const lang = this.indianLanguages.find(l => l.code === this.selectedLanguage());
@@ -183,25 +101,13 @@ export class Learn implements OnDestroy {
     this.loadLevel();
     this.loadLanguage();
     this.loadStreak();
-    this.loadHistory();
     this.loadTodayWords();
-  }
-
-  ngOnDestroy() {
-    this.stopQuizTimer();
   }
 
   setTab(tab: LearnTab) {
     this.activeTab.set(tab);
-    if (tab === 'previous') {
-      this.loadHistory();
-      this.reviewingDay.set(null);
-    }
     if (tab === 'spelling') {
       this.startSpelling();
-    }
-    if (tab === 'practice' && this.fillBlankSentences().length === 0) {
-      this.loadFillBlank();
     }
   }
 
@@ -383,50 +289,6 @@ export class Learn implements OnDestroy {
     localStorage.setItem(LEARNED_KEY, JSON.stringify(history));
   }
 
-  private loadHistory() {
-    const saved = localStorage.getItem(LEARNED_KEY);
-    if (!saved) { this.dailyHistory.set([]); return; }
-
-    try {
-      const history: { date: string; words: DailyWord[]; level?: string }[] = JSON.parse(saved);
-      const today = new Date().toISOString().split('T')[0];
-
-      this.dailyHistory.set(
-        history
-          .filter(h => h.date !== today)
-          .map(h => ({
-            date: h.date,
-            label: this.getDateLabel(h.date),
-            words: h.words,
-            level: h.level || 'school',
-          }))
-      );
-    } catch {
-      this.dailyHistory.set([]);
-    }
-  }
-
-  private getDateLabel(dateStr: string): string {
-    const date = new Date(dateStr);
-    const now = new Date();
-    const diffDays = Math.floor((now.getTime() - date.getTime()) / 86400000);
-
-    if (diffDays === 1) return 'Yesterday';
-    if (diffDays === 2) return '2 days ago';
-    if (diffDays <= 7) return `${diffDays} days ago`;
-    if (diffDays <= 14) return 'Last week';
-
-    return date.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' });
-  }
-
-  reviewDay(day: DayHistory) {
-    this.reviewingDay.set(day);
-  }
-
-  closeReview() {
-    this.reviewingDay.set(null);
-  }
-
   // === STREAK ===
   private loadStreak() {
     const saved = localStorage.getItem(STREAK_KEY);
@@ -459,154 +321,6 @@ export class Learn implements OnDestroy {
     }
     this.streak.set(count);
     localStorage.setItem(STREAK_KEY, JSON.stringify({ lastDate: today, count }));
-  }
-
-  // === QUIZ (API-based) ===
-  startQuiz() {
-    this.quizStarted.set(true);
-    this.quizFinished.set(false);
-    this.quizScore.set(0);
-    this.quizQuestionNum.set(0);
-    this.quizQuestion.set(null);
-    this.quizError.set('');
-    this.quizConfetti.set([]);
-    this.loadQuizQuestion();
-  }
-
-  private loadQuizQuestion() {
-    this.quizLoading.set(true);
-    this.quizAnswered.set(false);
-    this.quizSelectedOption.set(null);
-    this.quizTimerExpired.set(false);
-    this.quizError.set('');
-
-    const requestId = ++this.quizRequestId;
-
-    this.http.post<{ success: boolean; question: QuizQuestion }>(`${AI_API_URL}/quiz`, {
-      language: this.selectedLanguageName(),
-      difficulty: this.quizDifficulty(),
-    }).subscribe({
-      next: (res) => {
-        if (requestId !== this.quizRequestId) return;
-        if (res.success && res.question) {
-          this.quizQuestion.set(res.question);
-          this.shuffleQuizOptions(res.question);
-          this.quizQuestionNum.update(n => n + 1);
-          this.startQuizTimer();
-        } else {
-          this.quizError.set('Failed to load question. Try again.');
-        }
-        this.quizLoading.set(false);
-      },
-      error: () => {
-        if (requestId !== this.quizRequestId) return;
-        this.quizError.set('Server not available. Try again.');
-        this.quizLoading.set(false);
-      },
-    });
-  }
-
-  private shuffleQuizOptions(q: QuizQuestion) {
-    const correctAnswer = q.options[q.correct];
-    const shuffled = [...q.options].sort(() => Math.random() - 0.5);
-    this.quizShuffledOptions.set(shuffled);
-    this.quizShuffledCorrect.set(shuffled.indexOf(correctAnswer));
-  }
-
-  pickQuizOption(index: number) {
-    if (this.quizAnswered() || this.quizTimerExpired()) return;
-    this.quizAnswered.set(true);
-    this.quizSelectedOption.set(index);
-    this.stopQuizTimer();
-
-    if (index === this.quizShuffledCorrect()) {
-      this.quizScore.update(s => s + 1);
-      this.progress.addXP(10, 'quiz_correct');
-    }
-  }
-
-  nextQuizQuestion() {
-    if (this.quizQuestionNum() >= this.QUIZ_TOTAL) {
-      this.quizFinished.set(true);
-      this.stopQuizTimer();
-      if (this.quizScorePercent() >= 80) {
-        this.launchQuizConfetti();
-      }
-    } else {
-      this.loadQuizQuestion();
-    }
-  }
-
-  retryQuiz() {
-    this.startQuiz();
-  }
-
-  goToQuizSelect() {
-    this.quizStarted.set(false);
-    this.quizFinished.set(false);
-    this.quizQuestion.set(null);
-    this.quizScore.set(0);
-    this.quizQuestionNum.set(0);
-    this.quizError.set('');
-    this.quizConfetti.set([]);
-    this.stopQuizTimer();
-  }
-
-  getQuizOptionClass(i: number): string {
-    if (!this.quizAnswered() && !this.quizTimerExpired()) {
-      return 'border-gray-200 bg-white text-gray-700 hover:border-blue-300 hover:bg-blue-50 active:scale-[0.98] cursor-pointer';
-    }
-    if (i === this.quizShuffledCorrect()) {
-      return 'border-green-400 bg-green-50 text-green-700';
-    }
-    if (i === this.quizSelectedOption() && i !== this.quizShuffledCorrect()) {
-      return 'border-red-400 bg-red-50 text-red-700 animate-shake';
-    }
-    return 'border-gray-200 bg-white text-gray-400';
-  }
-
-  getQuizOptionIcon(i: number): string {
-    if (!this.quizAnswered() && !this.quizTimerExpired()) return '';
-    if (i === this.quizShuffledCorrect()) return '✓';
-    if (i === this.quizSelectedOption() && i !== this.quizShuffledCorrect()) return '✗';
-    return '';
-  }
-
-  // Quiz timer
-  private startQuizTimer() {
-    this.stopQuizTimer();
-    this.quizTimer.set(30);
-    this.quizTimerExpired.set(false);
-    this.quizTimerInterval = setInterval(() => {
-      this.quizTimer.update(t => t - 1);
-      if (this.quizTimer() <= 0) {
-        this.onQuizTimerExpired();
-      }
-    }, 1000);
-  }
-
-  stopQuizTimer() {
-    if (this.quizTimerInterval) {
-      clearInterval(this.quizTimerInterval);
-      this.quizTimerInterval = null;
-    }
-  }
-
-  private onQuizTimerExpired() {
-    this.stopQuizTimer();
-    this.quizTimerExpired.set(true);
-    this.quizAnswered.set(true);
-  }
-
-  private launchQuizConfetti() {
-    const colors = ['#22c55e', '#3b82f6', '#eab308', '#ef4444', '#a855f7', '#ec4899'];
-    const pieces = Array.from({ length: 40 }, () => ({
-      left: Math.random() * 100 + '%',
-      color: colors[Math.floor(Math.random() * colors.length)],
-      delay: Math.random() * 0.5 + 's',
-    }));
-    this.quizConfetti.set(pieces);
-    setTimeout(() => this.quizConfetti.set([]), 3000);
   }
 
   // === SPELLING PRACTICE ===
@@ -659,65 +373,6 @@ export class Learn implements OnDestroy {
     this.startSpelling();
   }
 
-  // === FILL IN THE BLANK ===
-  loadFillBlank() {
-    const learnedWords = this.words().filter((_, i) => this.learnedIndices().has(i));
-    const wordsToUse = learnedWords.length >= 5 ? learnedWords : this.words().slice(0, 10);
-
-    this.fillBlankLoading.set(true);
-    this.fillBlankFinished.set(false);
-    this.fillBlankScore.set(0);
-    this.fillBlankIndex.set(0);
-    this.fillBlankResult.set(null);
-
-    this.http.post<{ success: boolean; sentences: FillBlankSentence[] }>(`${AI_API_URL}/fill-blank`, {
-      words: wordsToUse,
-      language: this.selectedLanguageName(),
-    }).subscribe({
-      next: (res) => {
-        if (res.success && res.sentences?.length > 0) {
-          this.fillBlankSentences.set(res.sentences);
-        }
-        this.fillBlankLoading.set(false);
-      },
-      error: () => {
-        this.fillBlankLoading.set(false);
-      },
-    });
-  }
-
-  selectFillBlankAnswer(optionIndex: number) {
-    const sentences = [...this.fillBlankSentences()];
-    const current = sentences[this.fillBlankIndex()];
-    if (current.selected !== undefined) return;
-
-    current.selected = optionIndex;
-    sentences[this.fillBlankIndex()] = { ...current };
-    this.fillBlankSentences.set(sentences);
-
-    if (optionIndex === current.correct) {
-      this.fillBlankResult.set('correct');
-      this.fillBlankScore.update(s => s + 1);
-      this.progress.addXP(10, 'quiz_correct');
-    } else {
-      this.fillBlankResult.set('wrong');
-    }
-
-    setTimeout(() => {
-      this.fillBlankResult.set(null);
-      if (this.fillBlankIndex() < this.fillBlankSentences().length - 1) {
-        this.fillBlankIndex.update(i => i + 1);
-      } else {
-        this.fillBlankFinished.set(true);
-      }
-    }, 1200);
-  }
-
-  resetFillBlank() {
-    this.fillBlankSentences.set([]);
-    this.loadFillBlank();
-  }
-
   // === HELPERS ===
   getCategoryClass(category: string): string {
     return CATEGORY_COLORS[category] || 'bg-gray-100 text-gray-700 border-gray-200';
@@ -725,9 +380,5 @@ export class Learn implements OnDestroy {
 
   isCardLearned(index: number): boolean {
     return this.learnedIndices().has(index);
-  }
-
-  formatDate(dateStr: string): string {
-    return new Date(dateStr).toLocaleDateString('en-IN', { weekday: 'short', month: 'short', day: 'numeric' });
   }
 }
